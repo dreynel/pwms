@@ -23,24 +23,26 @@ class SettingsTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionHeader('NETWORK CONFIGURATION'),
+                    _buildSectionHeader('CLOUD & NETWORK CONFIGURATION'),
                     _buildSettingCard(
                       child: Column(
                         children: [
                           TextField(
                             controller: ipController,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                             decoration: InputDecoration(
-                              labelText: 'ESP32 NODE IP',
+                              labelText: 'HOSTINGER API / SERVER URL',
+                              hintText: 'https://yourdomain.com/api or 192.168.1.1',
+                              hintStyle: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12),
                               labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                               border: InputBorder.none,
-                              prefixIcon: const Icon(Icons.language_rounded, color: Colors.blueAccent),
+                              prefixIcon: const Icon(Icons.cloud_sync_rounded, color: Colors.blueAccent),
                               suffixIcon: IconButton(
                                 icon: const Icon(Icons.save_rounded, color: Colors.blueAccent),
                                 onPressed: () {
                                   provider.setIpAddress(ipController.text);
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Configuration saved.')),
+                                    const SnackBar(content: Text('Server configuration saved.')),
                                   );
                                 },
                               ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/control_provider.dart';
 import 'navigation_root.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -29,19 +31,27 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorText = null;
     });
 
-    // Simulate network delay for a smooth transition feel
-    await Future.delayed(const Duration(milliseconds: 600));
+    try {
+      final provider = Provider.of<ControlProvider>(context, listen: false);
+      final success = await provider.login(username, password);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (username == 'admin' && password == 'admin123') {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const NavigationRoot()),
-      );
-    } else {
+      if (success) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const NavigationRoot()),
+        );
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorText = 'Invalid username or password.';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorText = 'Invalid username or password.';
+        _errorText = e.toString().replaceAll('Exception: ', '');
       });
     }
   }
@@ -69,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: Colors.blueAccent.withOpacity(0.1),
+                    color: Colors.blueAccent.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -106,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -131,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),

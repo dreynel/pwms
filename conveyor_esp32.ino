@@ -1,41 +1,50 @@
 #include <WiFi.h>
-#include <WebServer.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
-#include <LittleFS.h>
 #include <time.h>
 
-// --- Configuration ---
+// --- Wi-Fi & Cloud Hostinger Configuration ---
 const char* ssid = "Box 2.4G";
 const char* password = "boxbox123";
+
+// Your Live Hostinger API Endpoint URL
+const char* serverUrl = "https://darkslateblue-hawk-354006.hostingersite.com";
+
+// NTP Time Configuration
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 28800; // Adjust for your timezone (e.g. 28800 for UTC+8)
 const int   daylightOffset_sec = 0;
 
-const int relayPin = 12; // Pin connected to the 12v relay
+// Hardware Pin Configuration
+const int relayPin = 23; // GPIO Pin connected to relay (or 12)
 bool motorState = false;
-WebServer server(80);
 
-// --- Helpers ---
-void printLocalTime() {
-  struct tm timeinfo;
-  if(!getLocalTime(&timeinfo)){
-    Serial.println("Failed to obtain time");
-    return;
-  }
-  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-}
+// Scheduling & Duration State
+unsigned long motorRunDurationMs = 0;
+unsigned long motorTurnOnTime = 0;
+bool isMotorRunningOnSchedule = false;
+String lastTriggeredTime = "";
 
+// Cloud Sync Timer
+unsigned long lastSyncTime = 0;
+const unsigned long syncIntervalMs = 4000; // Sync with Hostinger every 4 seconds
+
+// Forward declaration
+void checkSchedules(JsonArray schedules);
+
+// --- Time Helpers ---
 String getCurrentTimeStr() {
   struct tm timeinfo;
-  if(!getLocalTime(&timeinfo)) return "";
+  if (!getLocalTime(&timeinfo)) return "";
   char timeStr[10];
-  strftime(timeStr, sizeof(timeStr), "%I:%M %p", &timeinfo); // Matches Flutter format "10:30 AM"
+  strftime(timeStr, sizeof(timeStr), "%I:%M %p", &timeinfo); // Matches format "10:30 AM"
   return String(timeStr);
 }
 
 String getCurrentDayStr() {
   struct tm timeinfo;
-  if(!getLocalTime(&timeinfo)) return "";
+  if (!getLocalTime(&timeinfo)) return "";
   char dayStr[10];
   strftime(dayStr, sizeof(dayStr), "%a", &timeinfo); // e.g. "Mon", "Tue"
   return String(dayStr);
@@ -43,85 +52,85 @@ String getCurrentDayStr() {
 
 String getCurrentDateStr() {
   struct tm timeinfo;
-  if(!getLocalTime(&timeinfo)) return "";
+  if (!getLocalTime(&timeinfo)) return "";
   char dateStr[12];
-  strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", &timeinfo); // e.g. "2026-08-28"
+  strftime(dateStr, sizeof(dateStr), "%Y-%m-%d", &timeinfo); // e.g. "2026-08-29"
   return String(dateStr);
 }
 
-// --- API Handlers ---
-void handleStatus() {
-  StaticJsonDocument<200> doc;
-  doc["motor"] = motorState;
-  doc["connected"] = true;
-  doc["time"] = getCurrentTimeStr();
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
-
-void handleToggle() {
-  if (server.hasArg("plain") == false) {
-    server.send(400, "text/plain", "Body not found");
+// --- Cloud Sync with Hostinger PHP Backend ---
+void syncWithCloud(String logEventToSend = "") {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi not connected. Skipping cloud sync.");
     return;
   }
-  StaticJsonDocument<200> doc;
-  deserializeJson(doc, server.arg("plain"));
-  motorState = doc["state"];
-  digitalWrite(relayPin, motorState ? HIGH : LOW);
-  server.send(200, "application/json", "{\"status\":\"ok\"}");
-}
 
-void handleSchedulesGet() {
-  File file = LittleFS.open("/schedules.json", "r");
-  if (!file) {
-    server.send(200, "application/json", "[]");
-    return;
-  }
-  server.streamFile(file, "application/json");
-  file.close();
-}
+  HTTPClient http;
+  String syncUrl = String(serverUrl);
+  if (!syncUrl.endsWith("/")) syncUrl += "/";
+  syncUrl += "device_sync.php";
 
-void handleSchedulesPost() {
-  if (server.hasArg("plain") == false) {
-    server.send(400, "text/plain", "Body not found");
-    return;
-  }
-  File file = LittleFS.open("/schedules.json", "w");
-  if (file) {
-    file.print(server.arg("plain"));
-    file.close();
-    server.send(200, "application/json", "{\"status\":\"saved\"}");
+  bool isHttps = syncUrl.startsWith("https://");
+  WiFiClientSecure secureClient;
+  WiFiClient regularClient;
+
+  if (isHttps) {
+    secureClient.setInsecure(); // Connect over HTTPS without strict SSL certificate check
+    http.begin(secureClient, syncUrl);
   } else {
-    server.send(500, "text/plain", "Failed to save");
+    http.begin(regularClient, syncUrl);
   }
+
+  http.addHeader("Content-Type", "application/json");
+
+  StaticJsonDocument<256> reqDoc;
+  reqDoc["actual_motor_state"] = motorState;
+  if (logEventToSend.length() > 0) {
+    reqDoc["log_event"] = logEventToSend;
+    reqDoc["log_time"] = getCurrentDayStr() + " " + getCurrentTimeStr();
+  }
+
+  String reqBody;
+  serializeJson(reqDoc, reqBody);
+
+  int httpCode = http.POST(reqBody);
+  if (httpCode == HTTP_CODE_OK) {
+    String resBody = http.getString();
+    DynamicJsonDocument resDoc(4096);
+    DeserializationError error = deserializeJson(resDoc, resBody);
+
+    if (!error) {
+      // 1. Sync Motor State from Cloud (Manual Toggle from App)
+      bool targetMotorState = resDoc["target_motor_state"] | false;
+      if (motorState != targetMotorState && !isMotorRunningOnSchedule) {
+        motorState = targetMotorState;
+        digitalWrite(relayPin, motorState ? HIGH : LOW);
+        Serial.println(motorState ? "[CLOUD] Motor turned ON" : "[CLOUD] Motor turned OFF");
+      }
+
+      // 2. Check and Execute Schedules from Cloud
+      JsonArray schedules = resDoc["schedules"].as<JsonArray>();
+      checkSchedules(schedules);
+    }
+  } else {
+    Serial.printf("[HTTP] Sync status/error: %d\n", httpCode);
+  }
+
+  http.end();
 }
 
-// --- Schedule Execution ---
-String lastTriggeredTime = "";
-
-void checkSchedules() {
-  static unsigned long lastCheck = 0;
-  if (millis() - lastCheck < 30000) return; // Check every 30 seconds
-  lastCheck = millis();
-
-  String now = getCurrentTimeStr();
+// --- Check Schedules downloaded from Cloud ---
+void checkSchedules(JsonArray schedules) {
+  String nowTime = getCurrentTimeStr();
   String currentDay = getCurrentDayStr();
   String currentDate = getCurrentDateStr();
 
-  if (now == lastTriggeredTime) return;
+  if (nowTime == "" || nowTime == lastTriggeredTime) return;
 
-  File file = LittleFS.open("/schedules.json", "r");
-  if (!file) return;
-
-  DynamicJsonDocument doc(2048);
-  deserializeJson(doc, file);
-  file.close();
-
-  JsonArray schedules = doc.as<JsonArray>();
   for (JsonObject s : schedules) {
     String sTime = s["time"].as<String>();
     bool enabled = s["enabled"] | true;
+    int durationMinutes = s["duration"] | 1;
     String type = s["type"].as<String>();
 
     bool match = false;
@@ -144,12 +153,20 @@ void checkSchedules() {
         }
       }
     }
-    
-    if (enabled && match && sTime == now) {
-      Serial.println("Schedule Triggered: " + sTime);
-      lastTriggeredTime = now;
+
+    if (enabled && match && sTime == nowTime) {
+      Serial.println("[SCHEDULE] Triggered: " + sTime);
+      lastTriggeredTime = nowTime;
+
       motorState = true;
       digitalWrite(relayPin, HIGH);
+
+      isMotorRunningOnSchedule = true;
+      motorTurnOnTime = millis();
+      motorRunDurationMs = durationMinutes * 60000UL;
+
+      String logMsg = (type == "calendar") ? "Motor ON (Calendar Sched)" : "Motor ON (Recurring Sched)";
+      syncWithCloud(logMsg);
     }
   }
 }
@@ -159,28 +176,43 @@ void setup() {
   pinMode(relayPin, OUTPUT);
   digitalWrite(relayPin, LOW);
 
-  if(!LittleFS.begin(true)){
-    Serial.println("An Error has occurred while mounting LittleFS");
-  }
-
+  Serial.println("\nConnecting to Wi-Fi...");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
+    delay(500);
+    Serial.print(".");
   }
-  Serial.println(WiFi.localIP());
+  Serial.println("\nWi-Fi Connected! Local IP: " + WiFi.localIP().toString());
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  Serial.println("Synchronizing NTP Time...");
+  delay(2000);
 
-  server.on("/status", HTTP_GET, handleStatus);
-  server.on("/toggle", HTTP_POST, handleToggle);
-  server.on("/schedules", HTTP_GET, handleSchedulesGet);
-  server.on("/schedules", HTTP_POST, handleSchedulesPost);
-
-  server.begin();
+  // Initial cloud sync
+  syncWithCloud("ESP32 Connected Online");
 }
 
 void loop() {
-  server.handleClient();
-  checkSchedules();
+  // 1. Periodic Cloud Heartbeat & Sync
+  if (millis() - lastSyncTime >= syncIntervalMs) {
+    lastSyncTime = millis();
+    syncWithCloud();
+  }
+
+  // 2. Handle automatic turn-off when schedule duration finishes
+  if (isMotorRunningOnSchedule) {
+    if (millis() - motorTurnOnTime >= motorRunDurationMs) {
+      isMotorRunningOnSchedule = false;
+      motorState = false;
+      digitalWrite(relayPin, LOW);
+      Serial.println("[SCHEDULE] Duration finished. Motor turned OFF.");
+      syncWithCloud("Motor OFF (Schedule Finished)");
+    }
+  }
+
+  // 3. Wi-Fi Auto-reconnect if lost
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFi.reconnect();
+    delay(1000);
+  }
 }

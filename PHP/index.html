@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conveyor Automation Schedules</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8 selection:bg-blue-500 selection:text-white">
+
+  <!-- Container -->
+  <div class="w-full max-w-4xl space-y-6">
+
+    <!-- Top Header -->
+    <header class="bg-slate-800/80 border border-slate-700/60 backdrop-blur-md rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <div class="p-3 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl">
+          <i data-lucide="calendar-clock" class="w-8 h-8"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            Automation Schedules
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Live Sync
+            </span>
+          </h1>
+          <p class="text-sm text-slate-400 mt-0.5">Conveyor belt automated running timetable</p>
+        </div>
+      </div>
+
+      <!-- Live Clock & Refresh -->
+      <div class="flex items-center gap-3 self-end sm:self-center">
+        <div class="text-right">
+          <div id="liveClock" class="text-lg font-mono font-bold text-slate-200">--:--:--</div>
+          <div id="liveDate" class="text-xs text-slate-400">Loading...</div>
+        </div>
+        <button id="refreshBtn" onclick="loadSchedules()" title="Refresh" class="p-2.5 bg-slate-700/60 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white rounded-xl transition border border-slate-600/40">
+          <i data-lucide="rotate-cw" class="w-5 h-5" id="refreshIcon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Motor Live Status Card -->
+    <section class="bg-gradient-to-r from-slate-800/90 to-slate-800/50 border border-slate-700/60 rounded-2xl p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div id="motorIndicator" class="w-3.5 h-3.5 rounded-full bg-slate-500 ring-4 ring-slate-500/20 transition-all"></div>
+        <div>
+          <span class="text-xs uppercase tracking-wider font-semibold text-slate-400">Conveyor Motor Status</span>
+          <div id="motorStatusText" class="text-base font-bold text-slate-200">Checking...</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4 text-xs sm:text-sm text-slate-400 font-medium">
+        <span class="flex items-center gap-1.5">
+          <i data-lucide="wifi" class="w-4 h-4 text-slate-400" id="wifiIcon"></i>
+          <span id="deviceStatusText">Checking node...</span>
+        </span>
+        <span class="text-slate-600">|</span>
+        <span class="flex items-center gap-1.5">
+          <i data-lucide="database" class="w-4 h-4 text-blue-400"></i>
+          <span>MySQL Database</span>
+        </span>
+      </div>
+    </section>
+
+    <!-- Filter Segment -->
+    <div class="flex items-center justify-between">
+      <div class="inline-flex p-1 bg-slate-800/80 border border-slate-700/60 rounded-xl">
+        <button onclick="setFilter('all')" id="btn-all" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-blue-600 text-white shadow-sm">
+          All (<span id="countAll">0</span>)
+        </button>
+        <button onclick="setFilter('calendar')" id="btn-calendar" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white">
+          📅 Calendar Date (<span id="countCalendar">0</span>)
+        </button>
+        <button onclick="setFilter('recurring')" id="btn-recurring" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white">
+          🔁 Recurring (<span id="countRecurring">0</span>)
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-400 font-medium">
+        Auto-refreshes every <span class="text-blue-400 font-semibold">5s</span>
+      </div>
+    </div>
+
+    <!-- Schedules Grid / List -->
+    <main id="schedulesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Loading Skeleton -->
+      <div class="col-span-full py-16 flex flex-col items-center justify-center text-slate-500 space-y-3">
+        <div class="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+        <p class="text-sm font-medium">Fetching automation schedules from live database...</p>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="pt-4 text-center text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-800">
+      <span>Conveyor Automation System &bull; Live Cloud Hosted</span>
+      <span class="text-slate-400 font-mono">Last Synced: <span id="lastSyncTime" class="text-slate-400">Just now</span></span>
+    </footer>
+
+  </div>
+
+  <script>
+    let allSchedules = [];
+    let currentFilter = 'all';
+
+    // Update Live Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('liveClock').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      document.getElementById('liveDate').textContent = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      ['all', 'calendar', 'recurring'].forEach(f => {
+        const btn = document.getElementById(`btn-${f}`);
+        if (f === filter) {
+          btn.className = "px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-blue-600 text-white shadow-sm";
+        } else {
+          btn.className = "px-4 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white";
+        }
+      });
+      renderSchedules();
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('status.php');
+        if (res.ok) {
+          const data = await res.json();
+          const motorText = document.getElementById('motorStatusText');
+          const motorDot = document.getElementById('motorIndicator');
+          const devText = document.getElementById('deviceStatusText');
+          const wifi = document.getElementById('wifiIcon');
+
+          if (data.motor) {
+            motorText.textContent = 'RUNNING';
+            motorText.className = 'text-base font-bold text-emerald-400';
+            motorDot.className = 'w-3.5 h-3.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 animate-pulse';
+          } else {
+            motorText.textContent = 'STANDBY / OFF';
+            motorText.className = 'text-base font-bold text-slate-200';
+            motorDot.className = 'w-3.5 h-3.5 rounded-full bg-slate-500 ring-4 ring-slate-500/20';
+          }
+
+          if (data.connected) {
+            devText.textContent = 'ESP32 Online';
+            devText.className = 'text-emerald-400';
+            wifi.className = 'w-4 h-4 text-emerald-400';
+          } else {
+            devText.textContent = 'ESP32 Offline';
+            devText.className = 'text-slate-400';
+            wifi.className = 'w-4 h-4 text-slate-500';
+          }
+        }
+      } catch (err) {
+        console.warn('Status fetch error:', err);
+      }
+    }
+
+    async function loadSchedules() {
+      const icon = document.getElementById('refreshIcon');
+      if (icon) icon.classList.add('animate-spin');
+
+      try {
+        const res = await fetch('schedules.php');
+        if (res.ok) {
+          allSchedules = await res.json();
+          renderSchedules();
+          document.getElementById('lastSyncTime').textContent = new Date().toLocaleTimeString();
+        } else {
+          showError('Failed to fetch schedules from live server.');
+        }
+      } catch (err) {
+        showError('Network error connecting to database API.');
+      } finally {
+        if (icon) {
+          setTimeout(() => icon.classList.remove('animate-spin'), 600);
+        }
+      }
+    }
+
+    function renderSchedules() {
+      const container = document.getElementById('schedulesContainer');
+      
+      const calCount = allSchedules.filter(s => s.type === 'calendar' || s.date).length;
+      const recCount = allSchedules.filter(s => s.type !== 'calendar' && !s.date).length;
+
+      document.getElementById('countAll').textContent = allSchedules.length;
+      document.getElementById('countCalendar').textContent = calCount;
+      document.getElementById('countRecurring').textContent = recCount;
+
+      let filtered = allSchedules;
+      if (currentFilter === 'calendar') {
+        filtered = allSchedules.filter(s => s.type === 'calendar' || s.date);
+      } else if (currentFilter === 'recurring') {
+        filtered = allSchedules.filter(s => s.type !== 'calendar' && !s.date);
+      }
+
+      if (!filtered || filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-16 text-center bg-slate-800/40 border border-slate-700/50 rounded-2xl p-8">
+            <div class="w-12 h-12 mx-auto mb-3 text-slate-400 bg-slate-700/50 rounded-full flex items-center justify-center">
+              <i data-lucide="calendar-x-2" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-base font-semibold text-slate-300">No schedules found</h3>
+            <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              ${currentFilter === 'all' ? 'There are no active automation schedules in the database yet.' : `No ${currentFilter} automation schedules currently registered.`}
+            </p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = filtered.map(s => {
+        const isCalendar = (s.type === 'calendar' || s.date);
+        const isEnabled = (s.enabled !== false && s.enabled !== 0 && s.enabled !== '0');
+        const duration = s.duration || 1;
+
+        let badgeHtml = '';
+        let infoHtml = '';
+
+        if (isCalendar) {
+          badgeHtml = `
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+              SPECIFIC DATE
+            </span>
+          `;
+          infoHtml = `
+            <div class="flex items-center gap-2 text-sm text-slate-300 font-medium">
+              <i data-lucide="calendar-days" class="w-4 h-4 text-blue-400"></i>
+              <span>${s.date || 'Today'}</span>
+            </div>
+          `;
+        } else {
+          badgeHtml = `
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <i data-lucide="repeat" class="w-3.5 h-3.5"></i>
+              RECURRING
+            </span>
+          `;
+
+          const days = Array.isArray(s.days) ? s.days : (s.days ? [s.days] : ['Daily']);
+          const daysChips = days.map(d => `<span class="px-2 py-0.5 bg-slate-700/80 border border-slate-600/50 rounded text-xs font-medium text-slate-200">${d}</span>`).join(' ');
+
+          infoHtml = `
+            <div class="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+              <span class="text-slate-400 font-medium mr-1">Days:</span>
+              ${daysChips}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="bg-slate-800/80 border ${isEnabled ? 'border-slate-700/70 hover:border-blue-500/40' : 'border-slate-800 opacity-60'} transition-all rounded-2xl p-5 shadow-lg flex flex-col justify-between space-y-4">
+            
+            <!-- Card Top: Time & Badges -->
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-2xl sm:text-3xl font-mono font-bold tracking-tight text-white">${s.time || '--:--'}</span>
+                </div>
+                <div class="mt-2.5">${infoHtml}</div>
+              </div>
+              <div class="flex flex-col items-end gap-2">
+                ${badgeHtml}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${isEnabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-700 text-slate-400'}">
+                  ${isEnabled ? 'Active' : 'Disabled'}
+                </span>
+              </div>
+            </div>
+
+            <!-- Card Bottom: Duration & Meta -->
+            <div class="pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-400">
+              <div class="flex items-center gap-1.5 font-medium text-slate-300">
+                <i data-lucide="timer" class="w-4 h-4 text-blue-400"></i>
+                <span>Run Duration: <strong class="text-white">${duration} min${duration > 1 ? 's' : ''}</strong></span>
+              </div>
+              <span class="text-slate-400 text-[11px] font-mono">ID #${s.id || '--'}</span>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function showError(msg) {
+      const container = document.getElementById('schedulesContainer');
+      container.innerHTML = `
+        <div class="col-span-full py-12 text-center bg-rose-500/10 border border-rose-500/20 rounded-2xl p-6">
+          <div class="w-10 h-10 mx-auto mb-2 text-rose-400 bg-rose-500/10 rounded-full flex items-center justify-center">
+            <i data-lucide="alert-circle" class="w-5 h-5"></i>
+          </div>
+          <h3 class="text-sm font-semibold text-rose-300">${msg}</h3>
+          <p class="text-xs text-rose-400/80 mt-1">Please verify database connectivity on Hostinger.</p>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    // Initial Load & Interval Polling
+    loadStatus();
+    loadSchedules();
+    setInterval(loadStatus, 5000);
+    setInterval(loadSchedules, 5000);
+  </script>
+</body>
+</html>
+

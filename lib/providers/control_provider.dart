@@ -6,21 +6,20 @@ class ControlProvider with ChangeNotifier {
   bool _isMotorOn = false;
   bool _isConnected = false;
   List<Map<String, dynamic>> _schedules = [];
-  String _ipAddress = '192.168.1.1'; // Default ESP32 IP
-
+  String _ipAddress = 'https://darkslateblue-hawk-354006.hostingersite.com'; // Live Hostinger Cloud API
   bool get isMotorOn => _isMotorOn;
   bool get isConnected => _isConnected;
   List<Map<String, dynamic>> get schedules => _schedules;
   String get ipAddress => _ipAddress;
 
   ControlProvider() {
-    _apiService = ApiService(baseUrl: 'http://$_ipAddress');
+    _apiService = ApiService(baseUrl: _ipAddress);
     refreshStatus();
   }
 
   void setIpAddress(String ip) {
-    _ipAddress = ip;
-    _apiService = ApiService(baseUrl: 'http://$_ipAddress');
+    _ipAddress = ip.trim();
+    _apiService = ApiService(baseUrl: _ipAddress);
     refreshStatus();
     notifyListeners();
   }
@@ -128,6 +127,19 @@ class ControlProvider with ChangeNotifier {
     if (success) {
       _logs.clear();
       notifyListeners();
+    }
+  }
+
+  Future<bool> login(String username, String password) async {
+    try {
+      final res = await _apiService.login(username, password);
+      return res['status'] == 'ok';
+    } catch (_) {
+      // Fallback verification for default admin
+      if (username == 'admin' && password == 'admin123') {
+        return true;
+      }
+      rethrow;
     }
   }
 }
