@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/user_model.dart';
 import '../services/api_service.dart';
 
 class ControlProvider with ChangeNotifier {
@@ -7,10 +8,26 @@ class ControlProvider with ChangeNotifier {
   bool _isConnected = false;
   List<Map<String, dynamic>> _schedules = [];
   String _ipAddress = 'https://darkslateblue-hawk-354006.hostingersite.com'; // Live Hostinger Cloud API
+
+  UserModel? _currentUser;
+  List<UserModel> _users = [];
+
   bool get isMotorOn => _isMotorOn;
   bool get isConnected => _isConnected;
   List<Map<String, dynamic>> get schedules => _schedules;
   String get ipAddress => _ipAddress;
+
+  UserModel? get currentUser => _currentUser;
+  List<UserModel> get users => _users;
+
+  String get currentUserRole => _currentUser?.role.toLowerCase() ?? 'admin';
+  bool get isAdmin => currentUserRole == 'admin';
+  bool get isStaff => !isAdmin;
+
+  bool get canControlMotor => true;
+  bool get canEditSchedules => true;
+  bool get canClearLogs => isAdmin;
+  bool get canManageUsers => isAdmin;
 
   ControlProvider() {
     _apiService = ApiService(baseUrl: _ipAddress);
@@ -36,10 +53,21 @@ class ControlProvider with ChangeNotifier {
   }
 
   Future<void> toggleMotor() async {
-    final success = await _apiService.toggleMotor(!_isMotorOn);
+    debugPrint('[PROVIDER] Toggling motor from $_isMotorOn to ${!_isMotorOn} by ${_currentUser?.displayName}...');
+    final targetState = !_isMotorOn;
+    final success = await _apiService.toggleMotor(
+      targetState,
+      username: _currentUser?.username,
+      name: _currentUser?.displayName,
+    );
     if (success) {
-      _isMotorOn = !_isMotorOn;
+      _isMotorOn = targetState;
+      debugPrint('[PROVIDER] Motor state updated in app to: $_isMotorOn');
+      // Refresh logs so the action appears immediately in the logs tab
+      fetchLogs();
       notifyListeners();
+    } else {
+      debugPrint('[PROVIDER] toggleMotor failed on API level!');
     }
   }
 
@@ -117,7 +145,10 @@ class ControlProvider with ChangeNotifier {
   List<Map<String, dynamic>> get logs => _logs;
 
   Future<void> fetchLogs() async {
-    final fetched = await _apiService.getLogs();
+    final fetched = await _apiService.getLogs(
+      username: _currentUser?.username,
+      role: _currentUser?.role,
+    );
     _logs = fetched.reversed.toList();
     notifyListeners();
   }
@@ -130,16 +161,105 @@ class ControlProvider with ChangeNotifier {
     }
   }
 
+  // --- USER MANAGEMENT METHODS ---
+
+  Future<void> fetchUsers() async {
+    try {
+      final fetched = await _apiService.getUsers();
+      _users = fetched.map((json) => UserModel.fromJson(json)).toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[PROVIDER] fetchUsers error: $e');
+    }
+  }
+
+  Future<void> createUser({
+    String? name,
+    required String username,
+    required String password,
+    required String role,
+  }) async {
+    try {
+      await _apiService.createUser(
+        name: name,
+        username: username,
+        password: password,
+        role: role,
+      );
+      await fetchUsers();
+    } catch (e) {
+      debugPrint('[PROVIDER] createUser error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateUser(
+    int id, {
+    String? name,
+    String? username,
+    String? password,
+    String? role,
+  }) async {
+    try {
+      await _apiService.updateUser(
+        id,
+        name: name,
+        username: username,
+        password: password,
+        role: role,
+      );
+      // If updating currently logged in user, refresh _currentUser state
+      if (_currentUser != null && _currentUser!.id == id) {
+        _currentUser = _currentUser!.copyWith(
+          name: name,
+          username: username,
+          role: role,
+        );
+      }
+      await fetchUsers();
+    } catch (e) {
+      debugPrint('[PROVIDER] updateUser error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteUser(int id) async {
+    try {
+      await _apiService.deleteUser(id);
+      _users.removeWhere((u) => u.id == id);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[PROVIDER] deleteUser error: $e');
+      rethrow;
+    }
+  }
+
   Future<bool> login(String username, String password) async {
     try {
       final res = await _apiService.login(username, password);
-      return res['status'] == 'ok';
+      if (res['status'] == 'ok') {
+        if (res['user'] != null) {
+          _currentUser = UserModel.fromJson(res['user']);
+        } else {
+          _currentUser = UserModel(id: 1, username: username, role: 'admin');
+        }
+        notifyListeners();
+        return true;
+      }
+      return false;
     } catch (_) {
       // Fallback verification for default admin
       if (username == 'admin' && password == 'admin123') {
+        _currentUser = const UserModel(id: 1, username: 'admin', role: 'admin');
+        notifyListeners();
         return true;
       }
       rethrow;
     }
+  }
+
+  void logout() {
+    _currentUser = null;
+    notifyListeners();
   }
 }

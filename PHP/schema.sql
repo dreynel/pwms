@@ -15,9 +15,11 @@ CREATE TABLE IF NOT EXISTS `schedules` (
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 2. Hardware Event Logs Table
+-- 2. Hardware & Activity Logs Table (User-tracked)
 CREATE TABLE IF NOT EXISTS `logs` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `username` VARCHAR(50) DEFAULT NULL,            -- Associated worker username (e.g. 'mario_s')
+    `user_name` VARCHAR(100) DEFAULT NULL,          -- Associated worker display name
     `event` VARCHAR(255) NOT NULL,
     `time` VARCHAR(60) NOT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -31,18 +33,17 @@ CREATE TABLE IF NOT EXISTS `device_state` (
     `ip_address` VARCHAR(45) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4. Users Table (Mobile & Web Authentication)
+-- 4. Users Table (Admin & Staff Authentication)
 CREATE TABLE IF NOT EXISTS `users` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `username` VARCHAR(50) NOT NULL UNIQUE,
+    `name` VARCHAR(100) NOT NULL DEFAULT '',         -- Worker / User Full Name
+    `username` VARCHAR(50) NOT NULL UNIQUE,          -- Login credential
     `password` VARCHAR(255) NOT NULL,
-    `role` VARCHAR(20) NOT NULL DEFAULT 'admin',
+    `role` VARCHAR(20) NOT NULL DEFAULT 'staff',     -- 'admin' or 'staff'
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Initialize default admin user (admin / admin123)
-INSERT INTO `users` (`id`, `username`, `password`, `role`)
-VALUES (1, 'admin', 'admin123', 'admin')
+INSERT INTO `users` (`id`, `name`, `username`, `password`, `role`)
+VALUES (1, 'System Administrator', 'admin', 'admin123', 'admin')
 ON DUPLICATE KEY UPDATE `id` = `id`;
-
-

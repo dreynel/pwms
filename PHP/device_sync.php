@@ -20,27 +20,13 @@ try {
         ]);
     }
 
-    // 2. If ESP32 reported a physical state change (e.g. physical button / timer finish)
-    if (isset($input['actual_motor_state'])) {
-        $actualState = (bool)$input['actual_motor_state'] ? 1 : 0;
-        $upStmt = $pdo->prepare("
-            UPDATE device_state 
-            SET motor_state = :motor, last_ping = NOW(), ip_address = :ip 
-            WHERE id = 1
-        ");
-        $upStmt->execute([
-            ':motor' => $actualState,
-            ':ip'    => $clientIp
-        ]);
-    } else {
-        // Just update heartbeat ping and IP
-        $upStmt = $pdo->prepare("
-            UPDATE device_state 
-            SET last_ping = NOW(), ip_address = :ip 
-            WHERE id = 1
-        ");
-        $upStmt->execute([':ip' => $clientIp]);
-    }
+    // 2. Update heartbeat ping and IP (do NOT overwrite target motor_state from app)
+    $upStmt = $pdo->prepare("
+        UPDATE device_state 
+        SET last_ping = NOW(), ip_address = :ip 
+        WHERE id = 1
+    ");
+    $upStmt->execute([':ip' => $clientIp]);
 
     // 3. Fetch current device state
     $stateStmt = $pdo->query("SELECT * FROM device_state WHERE id = 1 LIMIT 1");

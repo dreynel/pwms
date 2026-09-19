@@ -146,7 +146,9 @@ class _SchedulesTabState extends State<SchedulesTab> {
         }
 
         return GestureDetector(
-          onTap: () => _showScheduleDialog(context, existing: schedule, index: index),
+          onTap: provider.canEditSchedules
+              ? () => _showScheduleDialog(context, existing: schedule, index: index)
+              : null,
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(20),
@@ -231,16 +233,34 @@ class _SchedulesTabState extends State<SchedulesTab> {
                     ],
                   ),
                 ),
-                Switch(
-                  value: isEnabled,
-                  activeThumbColor: Colors.blueAccent,
-                  onChanged: (val) => provider.toggleSchedule(index),
-                ),
-                IconButton(
-                  onPressed: () => provider.deleteSchedule(index),
-                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-                  tooltip: 'Delete schedule',
-                ),
+                if (provider.canEditSchedules) ...[
+                  Switch(
+                    value: isEnabled,
+                    activeThumbColor: Colors.blueAccent,
+                    onChanged: (val) => provider.toggleSchedule(index),
+                  ),
+                  IconButton(
+                    onPressed: () => provider.deleteSchedule(index),
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                    tooltip: 'Delete schedule',
+                  ),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isEnabled ? Colors.green.withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      isEnabled ? 'ACTIVE' : 'OFF',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isEnabled ? Colors.green : const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -250,6 +270,10 @@ class _SchedulesTabState extends State<SchedulesTab> {
   }
 
   Widget _buildAddAction(BuildContext context) {
+    final provider = Provider.of<ControlProvider>(context);
+    if (!provider.canEditSchedules) {
+      return const SizedBox.shrink();
+    }
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(

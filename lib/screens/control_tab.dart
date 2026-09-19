@@ -67,7 +67,7 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -102,7 +102,7 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: provider.isConnected ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              color: provider.isConnected ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -147,7 +147,7 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
                 height: 250 + (50 * _pulseController.value),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.blueAccent.withOpacity(0.1 * (1 - _pulseController.value)),
+                  color: Colors.blueAccent.withValues(alpha: 0.1 * (1 - _pulseController.value)),
                 ),
               );
             },
@@ -155,7 +155,37 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
         
         // Tactile Button
         GestureDetector(
-          onTap: () => provider.toggleMotor(),
+          onTap: () async {
+            if (!provider.canControlMotor) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🔒 Read-Only: Viewer account cannot control the conveyor motor.'),
+                  backgroundColor: Color(0xFF1E293B),
+                ),
+              );
+              return;
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Sending command to cloud server...'),
+                duration: Duration(milliseconds: 800),
+              ),
+            );
+            await provider.toggleMotor();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    provider.isMotorOn 
+                        ? '✅ Command sent: Motor turned ON' 
+                        : '🔴 Command sent: Motor turned OFF'
+                  ),
+                  backgroundColor: provider.isMotorOn ? Colors.green : Colors.red,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          },
           child: Container(
             width: 200,
             height: 200,
@@ -165,8 +195,8 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
               boxShadow: [
                 BoxShadow(
                   color: provider.isMotorOn 
-                      ? Colors.blueAccent.withOpacity(0.3) 
-                      : Colors.black.withOpacity(0.1),
+                      ? Colors.blueAccent.withValues(alpha: 0.3) 
+                      : Colors.black.withValues(alpha: 0.1),
                   blurRadius: 30,
                   spreadRadius: 5,
                 ),
@@ -220,7 +250,7 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -258,7 +288,7 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
           const Divider(color: Colors.white10, height: 24),
           _buildTelemetryRow('Hardware Rev', 'v1.2.0 (Relay Mode)'),
           const Divider(color: Colors.white10, height: 24),
-          _buildTelemetryRow('Schedule Sync', 'Active (LocalFS)'),
+          _buildTelemetryRow('Schedule Sync', 'Active (Cloud DB)'),
         ],
       ),
     );

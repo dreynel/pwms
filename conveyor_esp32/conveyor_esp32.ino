@@ -28,10 +28,11 @@ String lastTriggeredTime = "";
 
 // Cloud Sync Timer
 unsigned long lastSyncTime = 0;
-const unsigned long syncIntervalMs = 4000; // Sync with Hostinger every 4 seconds
+const unsigned long syncIntervalMs = 1000; // ⚡ Sync every 1 second for near-instant response
 
 // Forward declaration
 void checkSchedules(JsonArray schedules);
+void syncWithCloud(String logEventToSend = "");
 
 // --- Time Helpers ---
 String getCurrentTimeStr() {
@@ -59,9 +60,9 @@ String getCurrentDateStr() {
 }
 
 // --- Cloud Sync with Hostinger PHP Backend ---
-void syncWithCloud(String logEventToSend = "") {
+void syncWithCloud(String logEventToSend) {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi not connected. Skipping cloud sync.");
+    Serial.println("[WIFI] Not connected. Skipping cloud sync.");
     return;
   }
 
@@ -76,11 +77,14 @@ void syncWithCloud(String logEventToSend = "") {
 
   if (isHttps) {
     secureClient.setInsecure(); // Connect over HTTPS without strict SSL certificate check
+    secureClient.setTimeout(5000);
     http.begin(secureClient, syncUrl);
   } else {
+    regularClient.setTimeout(5000);
     http.begin(regularClient, syncUrl);
   }
 
+  http.setTimeout(5000);
   http.addHeader("Content-Type", "application/json");
 
   StaticJsonDocument<256> reqDoc;
@@ -93,27 +97,37 @@ void syncWithCloud(String logEventToSend = "") {
   String reqBody;
   serializeJson(reqDoc, reqBody);
 
+  Serial.println("[HTTP] Syncing with cloud: " + syncUrl);
   int httpCode = http.POST(reqBody);
+  Serial.printf("[HTTP] Code: %d\n", httpCode);
+
   if (httpCode == HTTP_CODE_OK) {
     String resBody = http.getString();
+    Serial.println("[HTTP] Response: " + resBody);
     DynamicJsonDocument resDoc(4096);
     DeserializationError error = deserializeJson(resDoc, resBody);
 
     if (!error) {
       // 1. Sync Motor State from Cloud (Manual Toggle from App)
       bool targetMotorState = resDoc["target_motor_state"] | false;
+      Serial.printf("[STATE] Current: %s | Target from DB: %s\n", 
+                    motorState ? "ON" : "OFF", 
+                    targetMotorState ? "ON" : "OFF");
+
       if (motorState != targetMotorState && !isMotorRunningOnSchedule) {
         motorState = targetMotorState;
         digitalWrite(relayPin, motorState ? HIGH : LOW);
-        Serial.println(motorState ? "[CLOUD] Motor turned ON" : "[CLOUD] Motor turned OFF");
+        Serial.println(motorState ? "[RELAY] Motor turned ON" : "[RELAY] Motor turned OFF");
       }
 
       // 2. Check and Execute Schedules from Cloud
       JsonArray schedules = resDoc["schedules"].as<JsonArray>();
       checkSchedules(schedules);
+    } else {
+      Serial.println("[JSON] Parse error: " + String(error.c_str()));
     }
   } else {
-    Serial.printf("[HTTP] Sync status/error: %d\n", httpCode);
+    Serial.printf("[HTTP] Failed! Code: %d\n", httpCode);
   }
 
   http.end();
@@ -193,7 +207,7 @@ void setup() {
 }
 
 void loop() {
-  // 1. Periodic Cloud Heartbeat & Sync
+  // 1. Periodic Cloud Heartbeat & Sync (every 1 second for near-instant response)
   if (millis() - lastSyncTime >= syncIntervalMs) {
     lastSyncTime = millis();
     syncWithCloud();
