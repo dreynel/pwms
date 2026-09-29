@@ -198,13 +198,18 @@ class SettingsTab extends StatelessWidget {
                       Text(
                         currentUser?.displayName ?? username,
                         style: const TextStyle(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF1E293B),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      Row(
+                      const SizedBox(height: 3),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             '@$username',
@@ -214,7 +219,6 @@ class SettingsTab extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -237,7 +241,10 @@ class SettingsTab extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 22),
                   tooltip: 'Sign Out',
                   onPressed: () => _confirmLogout(context, provider),
                 ),

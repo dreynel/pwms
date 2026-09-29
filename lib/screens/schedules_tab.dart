@@ -188,24 +188,26 @@ class _SchedulesTabState extends State<SchedulesTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             time,
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: isEnabled ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
                             ),
                           ),
-                          const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
                               color: isCalendar
                                   ? Colors.deepPurpleAccent.withValues(alpha: 0.1)
                                   : Colors.blueAccent.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               isCalendar ? 'CALENDAR' : 'RECURRING',
@@ -234,14 +236,20 @@ class _SchedulesTabState extends State<SchedulesTab> {
                   ),
                 ),
                 if (provider.canEditSchedules) ...[
-                  Switch(
-                    value: isEnabled,
-                    activeThumbColor: Colors.blueAccent,
-                    onChanged: (val) => provider.toggleSchedule(index),
+                  Transform.scale(
+                    scale: 0.85,
+                    child: Switch(
+                      value: isEnabled,
+                      activeThumbColor: Colors.blueAccent,
+                      onChanged: (val) => provider.toggleSchedule(index),
+                    ),
                   ),
                   IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(6),
+                    constraints: const BoxConstraints(),
                     onPressed: () => provider.deleteSchedule(index),
-                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
                     tooltip: 'Delete schedule',
                   ),
                 ] else ...[

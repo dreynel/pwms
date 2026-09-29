@@ -261,7 +261,10 @@ class _LogsTabState extends State<LogsTab> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           log['time'] ?? '',
@@ -271,8 +274,7 @@ class _LogsTabState extends State<LogsTab> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        if (author != null && author.toString().isNotEmpty) ...[
-                          const SizedBox(width: 8),
+                        if (author != null && author.toString().isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -288,7 +290,6 @@ class _LogsTabState extends State<LogsTab> {
                               ),
                             ),
                           ),
-                        ],
                       ],
                     ),
                   ],

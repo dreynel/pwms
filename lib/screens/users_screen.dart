@@ -81,37 +81,45 @@ class _UsersScreenState extends State<UsersScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF1E293B)),
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFF1E293B)),
             onPressed: () => Navigator.pop(context),
           ),
-          const SizedBox(width: 4),
-          Expanded(
+          const SizedBox(width: 6),
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'WORKFORCE & ACCESS',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w800,
                     color: Colors.blueAccent,
-                    letterSpacing: 2,
+                    letterSpacing: 1.5,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                const Text(
+                SizedBox(height: 2),
+                Text(
                   'User Management',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1E293B),
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF94A3B8)),
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(),
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF94A3B8), size: 20),
             tooltip: 'Refresh Users',
             onPressed: () => provider.fetchUsers(),
           ),
@@ -126,7 +134,7 @@ class _UsersScreenState extends State<UsersScreen> {
     final staffCount = provider.users.where((u) => u.isStaff).length;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
       child: Column(
         children: [
           // Search Box
@@ -152,6 +160,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 20),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
+                        visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF94A3B8)),
                         onPressed: () {
                           _searchController.clear();
@@ -160,11 +169,11 @@ class _UsersScreenState extends State<UsersScreen> {
                       )
                     : null,
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
           // Role Filter Tabs (Admin and Staff only)
           SingleChildScrollView(
@@ -191,10 +200,10 @@ class _UsersScreenState extends State<UsersScreen> {
       onTap: () => setState(() => _selectedRoleFilter = key),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
           ),
@@ -209,13 +218,14 @@ class _UsersScreenState extends State<UsersScreen> {
               : null,
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 14,
+              size: 13,
               color: isSelected ? Colors.white : const Color(0xFF64748B),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
@@ -272,7 +282,7 @@ class _UsersScreenState extends State<UsersScreen> {
     List<UserModel> users,
   ) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
       physics: const BouncingScrollPhysics(),
       itemCount: users.length,
       itemBuilder: (context, index) {
@@ -297,11 +307,11 @@ class _UsersScreenState extends State<UsersScreen> {
     final String roleLabel = user.roleDisplay;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isCurrent ? Colors.blueAccent.withValues(alpha: 0.5) : const Color(0xFFF1F5F9),
           width: isCurrent ? 1.5 : 1,
@@ -315,14 +325,15 @@ class _UsersScreenState extends State<UsersScreen> {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Avatar with Initials & Role Theme
           Container(
-            width: 50,
-            height: 50,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: roleColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Center(
               child: Text(
@@ -330,18 +341,19 @@ class _UsersScreenState extends State<UsersScreen> {
                 style: TextStyle(
                   color: roleColor,
                   fontWeight: FontWeight.w900,
-                  fontSize: 16,
+                  fontSize: 15,
                   letterSpacing: 0.5,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
 
           // User Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   children: [
@@ -349,20 +361,21 @@ class _UsersScreenState extends State<UsersScreen> {
                       child: Text(
                         user.displayName,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF1E293B),
                         ),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (isCurrent) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
                           color: Colors.blueAccent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(5),
                         ),
                         child: const Text(
                           'YOU',
@@ -376,8 +389,11 @@ class _UsersScreenState extends State<UsersScreen> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
-                Row(
+                const SizedBox(height: 3),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       '@${user.username}',
@@ -387,9 +403,8 @@ class _UsersScreenState extends State<UsersScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: roleColor.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(6),
@@ -398,14 +413,14 @@ class _UsersScreenState extends State<UsersScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(roleIcon, size: 10, color: roleColor),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 3),
                           Text(
                             roleLabel.toUpperCase(),
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
                               color: roleColor,
-                              letterSpacing: 0.5,
+                              letterSpacing: 0.4,
                             ),
                           ),
                         ],
@@ -419,21 +434,34 @@ class _UsersScreenState extends State<UsersScreen> {
 
           // Actions (Admin only)
           if (provider.canManageUsers) ...[
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, color: Color(0xFF64748B), size: 20),
-              tooltip: 'Edit User',
-              onPressed: () => _showUserFormDialog(context, existingUser: user),
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline_rounded,
-                color: isCurrent ? const Color(0xFFCBD5E1) : Colors.redAccent,
-                size: 20,
-              ),
-              tooltip: isCurrent ? 'Cannot delete current account' : 'Delete User',
-              onPressed: isCurrent
-                  ? null
-                  : () => _confirmDeleteUser(context, provider, user),
+            const SizedBox(width: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  icon: const Icon(Icons.edit_outlined, color: Color(0xFF64748B), size: 18),
+                  tooltip: 'Edit User',
+                  onPressed: () => _showUserFormDialog(context, existingUser: user),
+                ),
+                const SizedBox(width: 2),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: isCurrent ? const Color(0xFFCBD5E1) : Colors.redAccent,
+                    size: 18,
+                  ),
+                  tooltip: isCurrent ? 'Cannot delete current account' : 'Delete User',
+                  onPressed: isCurrent
+                      ? null
+                      : () => _confirmDeleteUser(context, provider, user),
+                ),
+              ],
             ),
           ],
         ],
@@ -443,7 +471,7 @@ class _UsersScreenState extends State<UsersScreen> {
 
   Widget _buildAddAction(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -456,23 +484,23 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
       child: SizedBox(
         width: double.infinity,
-        height: 56,
+        height: 50,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF1E293B),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             elevation: 0,
           ),
           onPressed: () => _showUserFormDialog(context),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.person_add_alt_1_rounded, size: 20),
-              SizedBox(width: 10),
+              Icon(Icons.person_add_alt_1_rounded, size: 18),
+              SizedBox(width: 8),
               Text(
                 'ADD STAFF / USER',
-                style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.2, fontSize: 14),
+                style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.1, fontSize: 13),
               ),
             ],
           ),
@@ -504,20 +532,24 @@ class _UsersScreenState extends State<UsersScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-              actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+              actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              actionsOverflowButtonSpacing: 8,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Row(
                 children: [
                   Icon(
                     isEditing ? Icons.manage_accounts_rounded : Icons.person_add_rounded,
                     color: Colors.blueAccent,
                   ),
-                  const SizedBox(width: 10),
-                  Text(
-                    isEditing ? 'Edit User' : 'New Staff / User',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isEditing ? 'Edit User' : 'New Staff / User',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -546,10 +578,10 @@ class _UsersScreenState extends State<UsersScreen> {
                             borderRadius: BorderRadius.circular(14),
                             borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
 
                       // Username Field
                       const Text('Login Username', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -569,16 +601,16 @@ class _UsersScreenState extends State<UsersScreen> {
                             borderRadius: BorderRadius.circular(14),
                             borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
 
                       // Role Selector (Admin or Staff only)
                       const Text('Access Role', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(14),
@@ -591,11 +623,19 @@ class _UsersScreenState extends State<UsersScreen> {
                             items: const [
                               DropdownMenuItem(
                                 value: 'staff',
-                                child: Text('Staff (Controls & Schedules)'),
+                                child: Text(
+                                  'Staff (Controls & Schedules)',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 13),
+                                ),
                               ),
                               DropdownMenuItem(
                                 value: 'admin',
-                                child: Text('Administrator (Full Control & Users)'),
+                                child: Text(
+                                  'Administrator (Full Control)',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 13),
+                                ),
                               ),
                             ],
                             onChanged: (val) {
@@ -606,7 +646,7 @@ class _UsersScreenState extends State<UsersScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
 
                       // Password Field
                       Text(
@@ -640,10 +680,10 @@ class _UsersScreenState extends State<UsersScreen> {
                             borderRadius: BorderRadius.circular(14),
                             borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
 
                       // Confirm Password Field (if creating or if password entered)
                       if (!isEditing || passwordController.text.isNotEmpty) ...[
@@ -675,14 +715,14 @@ class _UsersScreenState extends State<UsersScreen> {
                               borderRadius: BorderRadius.circular(14),
                               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           ),
                         ),
                       ],
 
                       // Form Error Display
                       if (formError != null) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
@@ -717,7 +757,7 @@ class _UsersScreenState extends State<UsersScreen> {
                     backgroundColor: const Color(0xFF1E293B),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                   ),
                   onPressed: isSubmitting
                       ? null
@@ -819,12 +859,16 @@ class _UsersScreenState extends State<UsersScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
               SizedBox(width: 8),
-              Text('Delete User', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              Expanded(
+                child: Text('Delete User', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ),
             ],
           ),
           content: Text(
