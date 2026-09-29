@@ -1,0 +1,15 @@
+.git
+.github
+build/
+.dart_tool/
+.idea/
+*.iml
+*.lock
+test/
+android/
+ios/
+windows/
+linux/
+macos/
+web/
+lib/

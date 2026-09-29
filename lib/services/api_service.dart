@@ -9,6 +9,9 @@ class ApiService {
 
   String _buildUrl(String endpoint) {
     String base = baseUrl.trim();
+    if (base.contains('?')) {
+      base = base.split('?').first.trim();
+    }
     if (base.endsWith('/')) {
       base = base.substring(0, base.length - 1);
     }
@@ -18,51 +21,60 @@ class ApiService {
     return '$base/$endpoint';
   }
 
+  Map<String, String> get _defaultHeaders => {
+    'Accept': 'application/json, text/plain, */*',
+    'User-Agent': 'PWMS-App/1.0',
+  };
+
+  Map<String, String> get _jsonHeaders => {
+    'Content-Type': 'application/json; charset=UTF-8',
+    'Accept': 'application/json, text/plain, */*',
+    'User-Agent': 'PWMS-App/1.0',
+  };
+
   Future<http.Response> _get(String endpoint) async {
     final url = _buildUrl(endpoint);
     try {
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
+      final res = await http.get(Uri.parse(url), headers: _defaultHeaders).timeout(const Duration(seconds: 8));
       if (res.statusCode == 404 && !endpoint.endsWith('.php')) {
-        return await http.get(Uri.parse(_buildUrl('$endpoint.php'))).timeout(const Duration(seconds: 8));
+        return await http.get(Uri.parse(_buildUrl('$endpoint.php')), headers: _defaultHeaders).timeout(const Duration(seconds: 8));
       }
       return res;
     } catch (_) {
       if (!endpoint.endsWith('.php')) {
-        return await http.get(Uri.parse(_buildUrl('$endpoint.php'))).timeout(const Duration(seconds: 8));
+        return await http.get(Uri.parse(_buildUrl('$endpoint.php')), headers: _defaultHeaders).timeout(const Duration(seconds: 8));
       }
       rethrow;
     }
   }
 
   Future<http.Response> _post(String endpoint, {required String body}) async {
-    final headers = {'Content-Type': 'application/json'};
     final url = _buildUrl(endpoint);
     try {
-      final res = await http.post(Uri.parse(url), body: body, headers: headers).timeout(const Duration(seconds: 8));
+      final res = await http.post(Uri.parse(url), body: body, headers: _jsonHeaders).timeout(const Duration(seconds: 8));
       if (res.statusCode == 404 && !endpoint.endsWith('.php')) {
-        return await http.post(Uri.parse(_buildUrl('$endpoint.php')), body: body, headers: headers).timeout(const Duration(seconds: 8));
+        return await http.post(Uri.parse(_buildUrl('$endpoint.php')), body: body, headers: _jsonHeaders).timeout(const Duration(seconds: 8));
       }
       return res;
     } catch (_) {
       if (!endpoint.endsWith('.php')) {
-        return await http.post(Uri.parse(_buildUrl('$endpoint.php')), body: body, headers: headers).timeout(const Duration(seconds: 8));
+        return await http.post(Uri.parse(_buildUrl('$endpoint.php')), body: body, headers: _jsonHeaders).timeout(const Duration(seconds: 8));
       }
       rethrow;
     }
   }
 
   Future<http.Response> _put(String endpoint, {required String body}) async {
-    final headers = {'Content-Type': 'application/json'};
     final url = _buildUrl(endpoint);
     try {
-      final res = await http.put(Uri.parse(url), body: body, headers: headers).timeout(const Duration(seconds: 8));
+      final res = await http.put(Uri.parse(url), body: body, headers: _jsonHeaders).timeout(const Duration(seconds: 8));
       if (res.statusCode == 404 && !endpoint.endsWith('.php')) {
-        return await http.put(Uri.parse(_buildUrl('$endpoint.php')), body: body, headers: headers).timeout(const Duration(seconds: 8));
+        return await http.put(Uri.parse(_buildUrl('$endpoint.php')), body: body, headers: _jsonHeaders).timeout(const Duration(seconds: 8));
       }
       return res;
     } catch (_) {
       if (!endpoint.endsWith('.php')) {
-        return await http.put(Uri.parse(_buildUrl('$endpoint.php')), body: body, headers: headers).timeout(const Duration(seconds: 8));
+        return await http.put(Uri.parse(_buildUrl('$endpoint.php')), body: body, headers: _jsonHeaders).timeout(const Duration(seconds: 8));
       }
       rethrow;
     }
@@ -71,14 +83,14 @@ class ApiService {
   Future<http.Response> _delete(String endpoint) async {
     final url = _buildUrl(endpoint);
     try {
-      final res = await http.delete(Uri.parse(url)).timeout(const Duration(seconds: 8));
+      final res = await http.delete(Uri.parse(url), headers: _defaultHeaders).timeout(const Duration(seconds: 8));
       if (res.statusCode == 404 && !endpoint.endsWith('.php')) {
-        return await http.delete(Uri.parse(_buildUrl('$endpoint.php'))).timeout(const Duration(seconds: 8));
+        return await http.delete(Uri.parse(_buildUrl('$endpoint.php')), headers: _defaultHeaders).timeout(const Duration(seconds: 8));
       }
       return res;
     } catch (_) {
       if (!endpoint.endsWith('.php')) {
-        return await http.delete(Uri.parse(_buildUrl('$endpoint.php'))).timeout(const Duration(seconds: 8));
+        return await http.delete(Uri.parse(_buildUrl('$endpoint.php')), headers: _defaultHeaders).timeout(const Duration(seconds: 8));
       }
       rethrow;
     }

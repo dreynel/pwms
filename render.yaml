@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: pwms-api
+    runtime: docker
+    plan: free
+    region: singapore # or oregon / frankfurt / ohio
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pwms-postgres
+          property: connectionString
+
+databases:
+  - name: pwms-postgres
+    plan: free
+    region: singapore # same region as web service
+    databaseName: pwms_db
+    user: pwms_user

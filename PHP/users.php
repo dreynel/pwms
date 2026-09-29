@@ -1,6 +1,7 @@
 <?php
 /**
  * /users.php - User Management API (CRUD for Admin & Staff only)
+ * Compatible with PostgreSQL & MySQL
  */
 
 require_once __DIR__ . '/db.php';
@@ -11,8 +12,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 // Handle GET: List all users
 if ($method === 'GET') {
     try {
-        $cols = $pdo->query("SHOW COLUMNS FROM `users`")->fetchAll(PDO::FETCH_COLUMN);
-        $stmt = $pdo->query("SELECT * FROM `users`");
+        $stmt = $pdo->query("SELECT * FROM users ORDER BY id ASC");
         $rows = $stmt->fetchAll();
 
         $users = [];
@@ -66,10 +66,8 @@ if ($method === 'POST') {
     }
 
     try {
-        $cols = $pdo->query("SHOW COLUMNS FROM `users`")->fetchAll(PDO::FETCH_COLUMN);
-
         // Check if username already exists
-        $checkStmt = $pdo->prepare("SELECT * FROM `users` WHERE `username` = :username LIMIT 1");
+        $checkStmt = $pdo->prepare("SELECT * FROM users WHERE LOWER(username) = LOWER(:username) LIMIT 1");
         $checkStmt->execute([':username' => $username]);
         if ($checkStmt->fetch()) {
             sendJson(['error' => "Username '{$username}' is already taken."], 409);
@@ -78,60 +76,32 @@ if ($method === 'POST') {
         // Hash password securely
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        // Build dynamic insert based on available columns
-        $fields = ['`username`', '`password`'];
-        $placeholders = [':username', ':password'];
-        $params = [
+        // Insert new user
+        $insertStmt = $pdo->prepare("
+            INSERT INTO users (name, username, password, role)
+            VALUES (:name, :username, :password, :role)
+        ");
+        $insertStmt->execute([
+            ':name'     => $name,
             ':username' => $username,
             ':password' => $hashedPassword,
-        ];
-
-        if (in_array('name', $cols, true)) {
-            $fields[] = '`name`';
-            $placeholders[] = ':name';
-            $params[':name'] = $name;
-        }
-
-        if (in_array('role', $cols, true)) {
-            $fields[] = '`role`';
-            $placeholders[] = ':role';
-            $params[':role'] = $role;
-        }
-
-        $fieldsStr = implode(', ', $fields);
-        $placeholdersStr = implode(', ', $placeholders);
-
-        $insertStmt = $pdo->prepare("INSERT INTO `users` ($fieldsStr) VALUES ($placeholdersStr)");
-        $insertStmt->execute($params);
+            ':role'     => $role,
+        ]);
 
         $newId = (int)$pdo->lastInsertId();
 
         // Audit log in logs table
         try {
-            $logCols = $pdo->query("SHOW COLUMNS FROM `logs`")->fetchAll(PDO::FETCH_COLUMN);
-            $logFields = ['`event`', '`time`'];
-            $logPlaceholders = [':event', ':time'];
-            $logParams = [
-                ':event' => "Added user '{$name}' (@{$username}, {$role})",
-                ':time'  => date('D h:i A'),
-            ];
-
-            if (in_array('username', $logCols, true)) {
-                $logFields[] = '`username`';
-                $logPlaceholders[] = ':username';
-                $logParams[':username'] = $username;
-            }
-            if (in_array('user_name', $logCols, true)) {
-                $logFields[] = '`user_name`';
-                $logPlaceholders[] = ':user_name';
-                $logParams[':user_name'] = $name;
-            }
-
-            $lFieldsStr = implode(', ', $logFields);
-            $lPlaceStr = implode(', ', $logPlaceholders);
-
-            $logStmt = $pdo->prepare("INSERT INTO `logs` ($lFieldsStr) VALUES ($lPlaceStr)");
-            $logStmt->execute($logParams);
+            $logStmt = $pdo->prepare("
+                INSERT INTO logs (username, user_name, event, time)
+                VALUES (:username, :user_name, :event, :time)
+            ");
+            $logStmt->execute([
+                ':username'  => $username,
+                ':user_name' => $name,
+                ':event'     => "Added user '{$name}' (@{$username}, {$role})",
+                ':time'      => date('D h:i A'),
+            ]);
         } catch (Exception $ex) {
             // Ignore log failure
         }
@@ -167,11 +137,8 @@ if ($method === 'PUT') {
     }
 
     try {
-        $cols = $pdo->query("SHOW COLUMNS FROM `users`")->fetchAll(PDO::FETCH_COLUMN);
-        $idCol = in_array('id', $cols, true) ? '`id`' : (in_array('userid', $cols, true) ? '`userid`' : '`id`');
-
         // Fetch current user
-        $fetchStmt = $pdo->prepare("SELECT * FROM `users` WHERE $idCol = :id LIMIT 1");
+        $fetchStmt = $pdo->prepare("SELECT * FROM users WHERE id = :id LIMIT 1");
         $fetchStmt->execute([':id' => $id]);
         $currentUser = $fetchStmt->fetch();
 
@@ -192,7 +159,7 @@ if ($method === 'PUT') {
 
             // If username changed, check uniqueness
             if ($username !== $currentUser['username']) {
-                $checkStmt = $pdo->prepare("SELECT * FROM `users` WHERE `username` = :username AND $idCol != :id LIMIT 1");
+                $checkStmt = $pdo->prepare("SELECT * FROM users WHERE LOWER(username) = LOWER(:username) AND id != :id LIMIT 1");
                 $checkStmt->execute([':username' => $username, ':id' => $id]);
                 if ($checkStmt->fetch()) {
                     sendJson(['error' => "Username '{$username}' is already taken."], 409);
@@ -208,7 +175,7 @@ if ($method === 'PUT') {
 
             // Prevent demoting the only admin account
             if (($currentUser['role'] ?? '') === 'admin' && $role !== 'admin') {
-                $adminCountStmt = $pdo->query("SELECT COUNT(*) as count FROM `users` WHERE `role` = 'admin'");
+                $adminCountStmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE role = 'admin'");
                 $adminCount = (int)$adminCountStmt->fetch()['count'];
                 if ($adminCount <= 1) {
                     sendJson(['error' => 'Cannot demote the only remaining Administrator.'], 400);
@@ -218,59 +185,49 @@ if ($method === 'PUT') {
             $role = $currentUser['role'] ?? 'staff';
         }
 
-        // Build dynamic update
-        $setClauses = [];
-        $params = [':id' => $id];
-
-        if (in_array('username', $cols, true)) {
-            $setClauses[] = "`username` = :username";
-            $params[':username'] = $username;
-        }
-        if (in_array('name', $cols, true)) {
-            $setClauses[] = "`name` = :name";
-            $params[':name'] = $name;
-        }
-        if (in_array('role', $cols, true)) {
-            $setClauses[] = "`role` = :role";
-            $params[':role'] = $role;
-        }
-        if (!empty($password) && in_array('password', $cols, true)) {
-            $setClauses[] = "`password` = :password";
-            $params[':password'] = password_hash($password, PASSWORD_DEFAULT);
-        }
-
-        if (!empty($setClauses)) {
-            $setStr = implode(', ', $setClauses);
-            $updateStmt = $pdo->prepare("UPDATE `users` SET $setStr WHERE $idCol = :id");
-            $updateStmt->execute($params);
+        // Build update
+        if (!empty($password)) {
+            if (strlen($password) < 4) {
+                sendJson(['error' => 'Password must be at least 4 characters.'], 400);
+            }
+            $updateStmt = $pdo->prepare("
+                UPDATE users 
+                SET name = :name, username = :username, role = :role, password = :password 
+                WHERE id = :id
+            ");
+            $updateStmt->execute([
+                ':name'     => $name,
+                ':username' => $username,
+                ':role'     => $role,
+                ':password' => password_hash($password, PASSWORD_DEFAULT),
+                ':id'       => $id,
+            ]);
+        } else {
+            $updateStmt = $pdo->prepare("
+                UPDATE users 
+                SET name = :name, username = :username, role = :role 
+                WHERE id = :id
+            ");
+            $updateStmt->execute([
+                ':name'     => $name,
+                ':username' => $username,
+                ':role'     => $role,
+                ':id'       => $id,
+            ]);
         }
 
         // Audit log in logs table
         try {
-            $logCols = $pdo->query("SHOW COLUMNS FROM `logs`")->fetchAll(PDO::FETCH_COLUMN);
-            $logFields = ['`event`', '`time`'];
-            $logPlaceholders = [':event', ':time'];
-            $logParams = [
-                ':event' => "Updated user '{$name}' (@{$username}, role: {$role}" . (!empty($password) ? ", pwd changed" : "") . ")",
-                ':time'  => date('D h:i A'),
-            ];
-
-            if (in_array('username', $logCols, true)) {
-                $logFields[] = '`username`';
-                $logPlaceholders[] = ':username';
-                $logParams[':username'] = $username;
-            }
-            if (in_array('user_name', $logCols, true)) {
-                $logFields[] = '`user_name`';
-                $logPlaceholders[] = ':user_name';
-                $logParams[':user_name'] = $name;
-            }
-
-            $lFieldsStr = implode(', ', $logFields);
-            $lPlaceStr = implode(', ', $logPlaceholders);
-
-            $logStmt = $pdo->prepare("INSERT INTO `logs` ($lFieldsStr) VALUES ($lPlaceStr)");
-            $logStmt->execute($logParams);
+            $logStmt = $pdo->prepare("
+                INSERT INTO logs (username, user_name, event, time) 
+                VALUES (:username, :user_name, :event, :time)
+            ");
+            $logStmt->execute([
+                ':username'  => $username,
+                ':user_name' => $name,
+                ':event'     => "Updated user '{$name}' (@{$username}, role: {$role}" . (!empty($password) ? ", pwd changed" : "") . ")",
+                ':time'      => date('D h:i A'),
+            ]);
         } catch (Exception $ex) {
             // Ignore log failure
         }
@@ -303,11 +260,8 @@ if ($method === 'DELETE') {
     }
 
     try {
-        $cols = $pdo->query("SHOW COLUMNS FROM `users`")->fetchAll(PDO::FETCH_COLUMN);
-        $idCol = in_array('id', $cols, true) ? '`id`' : (in_array('userid', $cols, true) ? '`userid`' : '`id`');
-
         // Fetch target user
-        $fetchStmt = $pdo->prepare("SELECT * FROM `users` WHERE $idCol = :id LIMIT 1");
+        $fetchStmt = $pdo->prepare("SELECT * FROM users WHERE id = :id LIMIT 1");
         $fetchStmt->execute([':id' => $id]);
         $targetUser = $fetchStmt->fetch();
 
@@ -317,44 +271,30 @@ if ($method === 'DELETE') {
 
         // Prevent deleting the only admin
         if (($targetUser['role'] ?? '') === 'admin') {
-            $adminCountStmt = $pdo->query("SELECT COUNT(*) as count FROM `users` WHERE `role` = 'admin'");
+            $adminCountStmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE role = 'admin'");
             $adminCount = (int)$adminCountStmt->fetch()['count'];
             if ($adminCount <= 1) {
                 sendJson(['error' => 'Cannot delete the only remaining Administrator account.'], 400);
             }
         }
 
-        $deleteStmt = $pdo->prepare("DELETE FROM `users` WHERE $idCol = :id");
+        $deleteStmt = $pdo->prepare("DELETE FROM users WHERE id = :id");
         $deleteStmt->execute([':id' => $id]);
 
         $displayName = !empty($targetUser['name']) ? $targetUser['name'] : ($targetUser['username'] ?? 'User');
 
         // Audit log in logs table
         try {
-            $logCols = $pdo->query("SHOW COLUMNS FROM `logs`")->fetchAll(PDO::FETCH_COLUMN);
-            $logFields = ['`event`', '`time`'];
-            $logPlaceholders = [':event', ':time'];
-            $logParams = [
-                ':event' => "Deleted user '{$displayName}' (@" . ($targetUser['username'] ?? '') . ")",
-                ':time'  => date('D h:i A'),
-            ];
-
-            if (in_array('username', $logCols, true)) {
-                $logFields[] = '`username`';
-                $logPlaceholders[] = ':username';
-                $logParams[':username'] = $targetUser['username'] ?? '';
-            }
-            if (in_array('user_name', $logCols, true)) {
-                $logFields[] = '`user_name`';
-                $logPlaceholders[] = ':user_name';
-                $logParams[':user_name'] = $displayName;
-            }
-
-            $lFieldsStr = implode(', ', $logFields);
-            $lPlaceStr = implode(', ', $logPlaceholders);
-
-            $logStmt = $pdo->prepare("INSERT INTO `logs` ($lFieldsStr) VALUES ($lPlaceStr)");
-            $logStmt->execute($logParams);
+            $logStmt = $pdo->prepare("
+                INSERT INTO logs (username, user_name, event, time) 
+                VALUES (:username, :user_name, :event, :time)
+            ");
+            $logStmt->execute([
+                ':username'  => $targetUser['username'] ?? '',
+                ':user_name' => $displayName,
+                ':event'     => "Deleted user '{$displayName}' (@" . ($targetUser['username'] ?? '') . ")",
+                ':time'      => date('D h:i A'),
+            ]);
         } catch (Exception $ex) {
             // Ignore log failure
         }
