@@ -185,7 +185,7 @@ if ($method === 'PUT') {
             $role = $currentUser['role'] ?? 'staff';
         }
 
-        // Build update
+        // Build update query
         if (!empty($password)) {
             if (strlen($password) < 4) {
                 sendJson(['error' => 'Password must be at least 4 characters.'], 400);

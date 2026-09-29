@@ -1,10 +1,9 @@
 <?php
 /**
- * PWMS - Unified Database Connection & Migration (PostgreSQL & MySQL)
- * Compatible with Render.com Docker, Managed PostgreSQL, Hostinger, and Local Environments
+ * PWMS - Unified Database Connection & Auto-Setup (PostgreSQL & MySQL)
+ * Compatible with Render.com Docker (PostgreSQL) and MySQL environments
  */
 
-// Enable Output Buffering & CORS for Flutter App & ESP32
 ob_start();
 
 header("Access-Control-Allow-Origin: *");
@@ -21,11 +20,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 define('TIMEZONE', 'Asia/Singapore');
 date_default_timezone_set(TIMEZONE);
 
-// Default fallback Render PostgreSQL connection string (if not set in env)
+// Default fallback Render PostgreSQL connection string
 define('DEFAULT_DATABASE_URL', 'postgresql://postgresql_pwms_user:KX79wNjKlzrDdOYKGR7Jkq9Lm1jyM3R6@dpg-datmotjncjis7397ubbg-a/postgresql_pwms');
 
 /**
- * Get Unified PDO Connection (Auto-detects PostgreSQL vs MySQL)
+ * Get Unified PDO Connection
  */
 function getDb() {
     static $pdo = null;
@@ -33,7 +32,6 @@ function getDb() {
         return $pdo;
     }
 
-    // 1. Check for Render Managed PostgreSQL / Database URL
     $databaseUrl = getenv('DATABASE_URL') ?: (getenv('INTERNAL_DATABASE_URL') ?: DEFAULT_DATABASE_URL);
 
     $options = [
@@ -45,17 +43,15 @@ function getDb() {
     try {
         if (!empty($databaseUrl) && (strpos($databaseUrl, 'postgres://') === 0 || strpos($databaseUrl, 'postgresql://') === 0)) {
             $parsed = parse_url($databaseUrl);
-            $dbHost   = $parsed['host'] ?? 'localhost';
-            $dbPort   = $parsed['port'] ?? 5432;
-            $dbUser   = $parsed['user'] ?? 'postgres';
-            $dbPass   = $parsed['pass'] ?? '';
-            $dbName   = ltrim($parsed['path'] ?? '', '/');
+            $dbHost = $parsed['host'] ?? 'localhost';
+            $dbPort = $parsed['port'] ?? 5432;
+            $dbUser = $parsed['user'] ?? 'postgres';
+            $dbPass = $parsed['pass'] ?? '';
+            $dbName = ltrim($parsed['path'] ?? '', '/');
 
-            // Render Postgres connection string with SSL
             $dsn = "pgsql:host={$dbHost};port={$dbPort};dbname={$dbName};sslmode=prefer";
             $pdo = new PDO($dsn, $dbUser, $dbPass, $options);
         } else {
-            // 2. Fallback to individual Environment Variables
             $driver = getenv('DB_DRIVER') ?: 'pgsql';
             $dbHost = getenv('DB_HOST') ?: 'localhost';
             $dbPort = getenv('DB_PORT') ?: ($driver === 'pgsql' ? 5432 : 3306);
@@ -72,13 +68,13 @@ function getDb() {
             }
         }
 
-        // Auto-initialize tables on startup
+        // Auto-initialize tables
         autoSetupTables($pdo);
 
     } catch (PDOException $e) {
         sendJson([
             'error' => 'Database connection failed: ' . $e->getMessage(),
-            'hint'  => 'If running in Render Docker, ensure the Web Service is in the same Render region as the PostgreSQL database (dpg-datmotjncjis7397ubbg-a). If running locally, use the External Database URL.'
+            'hint'  => 'Ensure your Render Web Service is running in the same region as the PostgreSQL database (dpg-datmotjncjis7397ubbg-a).'
         ], 500);
     }
 
@@ -178,7 +174,7 @@ function autoSetupTables($pdo) {
                 ");
             }
         } catch (Exception $e) {
-            // Ignore if tables exist
+            // Continue
         }
     } else {
         // -------------------------------------------------------------
@@ -223,39 +219,6 @@ function autoSetupTables($pdo) {
                     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
-
-            // Safe auto-migration for existing MySQL tables
-            $userCols = getTableColumns($pdo, 'users');
-            if (in_array('userid', $userCols, true) && !in_array('id', $userCols, true)) {
-                try {
-                    $pdo->exec("ALTER TABLE `users` CHANGE COLUMN `userid` `id` INT AUTO_INCREMENT");
-                } catch (Exception $e) {}
-            }
-            if (!in_array('name', $userCols, true)) {
-                try {
-                    $pdo->exec("ALTER TABLE `users` ADD COLUMN `name` VARCHAR(100) NOT NULL DEFAULT ''");
-                } catch (Exception $e) {}
-            }
-            if (!in_array('role', $userCols, true)) {
-                try {
-                    $pdo->exec("ALTER TABLE `users` ADD COLUMN `role` VARCHAR(20) NOT NULL DEFAULT 'staff'");
-                } catch (Exception $e) {}
-            }
-
-            // Seed default admin
-            $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM `users` WHERE `username` = 'admin'")->fetchColumn();
-            if ($adminCount === 0) {
-                $pdo->exec("
-                    INSERT INTO `users` (`name`, `username`, `password`, `role`)
-                    VALUES ('System Administrator', 'admin', 'admin123', 'admin')
-                ");
-            }
-
-            // Seed device state
-            $devCount = (int)$pdo->query("SELECT COUNT(*) FROM `device_state` WHERE `id` = 1")->fetchColumn();
-            if ($devCount === 0) {
-                $pdo->exec("INSERT INTO `device_state` (`id`, `motor_state`, `last_ping`, `ip_address`) VALUES (1, 0, NOW(), '127.0.0.1')");
-            }
         } catch (Exception $e) {}
     }
 }
@@ -284,7 +247,7 @@ function getJsonInput() {
     return is_array($decoded) ? $decoded : [];
 }
 
-// Direct browser test for db.php
+// Direct browser status test for db.php
 if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'db.php') {
     $pdo = getDb();
     $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
