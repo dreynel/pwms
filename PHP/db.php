@@ -1,11 +1,9 @@
 <?php
 /**
- * Conveyor Control - Hostinger MySQL Database Connection & Helpers
  * PWMS - Unified Database Connection & Migration (PostgreSQL & MySQL)
- * Compatible with Render.com Docker, Hostinger, and Local Environments
+ * Compatible with Render.com Docker, Managed PostgreSQL, Hostinger, and Local Environments
  */
 
-// Enable CORS for Flutter & Web Clients
 // Enable Output Buffering & CORS for Flutter App & ESP32
 ob_start();
 
@@ -20,54 +18,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// -------------------------------------------------------------
-// Database Configuration (Hostinger MySQL details)
-// -------------------------------------------------------------
-// define('DB_HOST', 'localhost');                  // Usually 'localhost' on Hostinger
-// define('DB_NAME', 'u534933225_dbpwms');        // Your Hostinger Database Name
-// define('DB_USER', 'u534933225_pwms');          // Your Hostinger Database Username
-// define('DB_PASS', 'QIr0lbg5*');                // Your Hostinger Database Password
-define('TIMEZONE', 'Asia/Singapore');            // Adjust timezone
-
-
-define('DB_HOST', 'sql301.infinityfree.com'); // Your InfinityFree MySQL Hostname
-define('DB_NAME', 'if0_43029144_db_pwms');      // Your Database Name
-define('DB_USER', 'if0_43029144');             // Your Database Username
-define('DB_PASS', 'hfSkMnTQaHOb0');    // Your vPanel Password
-
-
 define('TIMEZONE', 'Asia/Singapore');
 date_default_timezone_set(TIMEZONE);
 
+// Default fallback Render PostgreSQL connection string (if not set in env)
+define('DEFAULT_DATABASE_URL', 'postgresql://postgresql_pwms_user:KX79wNjKlzrDdOYKGR7Jkq9Lm1jyM3R6@dpg-datmotjncjis7397ubbg-a/postgresql_pwms');
+
 /**
- * Get PDO Database Connection (Auto-creates and migrates tables if needed)
  * Get Unified PDO Connection (Auto-detects PostgreSQL vs MySQL)
  */
 function getDb() {
     static $pdo = null;
-    if ($pdo === null) {
-        try {
-            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
-            $options = [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ];
-            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
-            
-            // Auto-initialize & migrate tables
-            autoSetupTables($pdo);
-        } catch (PDOException $e) {
-            sendJson([
-                'error' => 'Database connection failed: ' . $e->getMessage(),
-                'hint'  => 'Please verify your Hostinger DB_NAME and DB_USER in db.php.'
-            ], 500);
     if ($pdo !== null) {
         return $pdo;
     }
 
-    // 1. Check for Render Managed PostgreSQL / Database URL (e.g., DATABASE_URL=postgres://user:pass@host:5432/dbname)
-    $databaseUrl = getenv('DATABASE_URL') ?: (getenv('INTERNAL_DATABASE_URL') ?: '');
+    // 1. Check for Render Managed PostgreSQL / Database URL
+    $databaseUrl = getenv('DATABASE_URL') ?: (getenv('INTERNAL_DATABASE_URL') ?: DEFAULT_DATABASE_URL);
 
     $options = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -76,25 +43,24 @@ function getDb() {
     ];
 
     try {
-        if (!empty($databaseUrl)) {
+        if (!empty($databaseUrl) && (strpos($databaseUrl, 'postgres://') === 0 || strpos($databaseUrl, 'postgresql://') === 0)) {
             $parsed = parse_url($databaseUrl);
-            $dbDriver = 'pgsql';
             $dbHost   = $parsed['host'] ?? 'localhost';
             $dbPort   = $parsed['port'] ?? 5432;
             $dbUser   = $parsed['user'] ?? 'postgres';
             $dbPass   = $parsed['pass'] ?? '';
             $dbName   = ltrim($parsed['path'] ?? '', '/');
 
-            // Render Postgres connection string (requires SSL mode)
+            // Render Postgres connection string with SSL
             $dsn = "pgsql:host={$dbHost};port={$dbPort};dbname={$dbName};sslmode=prefer";
             $pdo = new PDO($dsn, $dbUser, $dbPass, $options);
         } else {
-            // 2. Fallback to Environment Variables or Config Constants
-            $driver = getenv('DB_DRIVER') ?: 'pgsql'; // default to pgsql on Render
+            // 2. Fallback to individual Environment Variables
+            $driver = getenv('DB_DRIVER') ?: 'pgsql';
             $dbHost = getenv('DB_HOST') ?: 'localhost';
             $dbPort = getenv('DB_PORT') ?: ($driver === 'pgsql' ? 5432 : 3306);
-            $dbName = getenv('DB_NAME') ?: 'pwms_db';
-            $dbUser = getenv('DB_USER') ?: 'postgres';
+            $dbName = getenv('DB_NAME') ?: 'postgresql_pwms';
+            $dbUser = getenv('DB_USER') ?: 'postgresql_pwms_user';
             $dbPass = getenv('DB_PASS') ?: (getenv('DB_PASSWORD') ?: '');
 
             if ($driver === 'pgsql') {
@@ -112,7 +78,7 @@ function getDb() {
     } catch (PDOException $e) {
         sendJson([
             'error' => 'Database connection failed: ' . $e->getMessage(),
-            'hint'  => 'Ensure DATABASE_URL or DB_HOST/DB_NAME/DB_USER/DB_PASS environment variables are configured.'
+            'hint'  => 'If running in Render Docker, ensure the Web Service is in the same Render region as the PostgreSQL database (dpg-datmotjncjis7397ubbg-a). If running locally, use the External Database URL.'
         ], 500);
     }
 
@@ -145,34 +111,8 @@ function getTableColumns($pdo, $table) {
  * Automatically create and safely migrate tables
  */
 function autoSetupTables($pdo) {
-    // 1. Setup Schedules Table
-    try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS `schedules` (
-                `id` INT AUTO_INCREMENT PRIMARY KEY,
-                `type` VARCHAR(20) NOT NULL DEFAULT 'recurring',
-                `time` VARCHAR(20) NOT NULL,
-                `date` VARCHAR(20) DEFAULT NULL,
-                `days` TEXT DEFAULT NULL,
-                `duration` INT NOT NULL DEFAULT 1,
-                `enabled` TINYINT(1) NOT NULL DEFAULT 1,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        ");
-    } catch (Exception $e) {}
     $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
-    // 2. Setup Device State Table
-    try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS `device_state` (
-                `id` INT PRIMARY KEY DEFAULT 1,
-                `motor_state` TINYINT(1) NOT NULL DEFAULT 0,
-                `last_ping` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                `ip_address` VARCHAR(45) DEFAULT NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        ");
     if ($driver === 'pgsql') {
         // -------------------------------------------------------------
         // PostgreSQL Schema Setup
@@ -191,11 +131,6 @@ function autoSetupTables($pdo) {
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
 
-        $devCount = (int)$pdo->query("SELECT COUNT(*) FROM `device_state` WHERE `id` = 1")->fetchColumn();
-        if ($devCount === 0) {
-            $pdo->exec("INSERT INTO `device_state` (`id`, `motor_state`, `last_ping`, `ip_address`) VALUES (1, 0, NOW(), '127.0.0.1')");
-        }
-    } catch (Exception $e) {}
                 CREATE TABLE IF NOT EXISTS logs (
                     id SERIAL PRIMARY KEY,
                     username VARCHAR(50) DEFAULT NULL,
@@ -205,19 +140,6 @@ function autoSetupTables($pdo) {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
 
-    // 3. Setup & Migrate Users Table (Column-by-Column Safe Migration)
-    try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS `users` (
-                `id` INT AUTO_INCREMENT PRIMARY KEY,
-                `name` VARCHAR(100) NOT NULL DEFAULT '',
-                `username` VARCHAR(50) NOT NULL UNIQUE,
-                `password` VARCHAR(255) NOT NULL,
-                `role` VARCHAR(20) NOT NULL DEFAULT 'staff',
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        ");
-    } catch (Exception $e) {}
                 CREATE TABLE IF NOT EXISTS device_state (
                     id INT PRIMARY KEY DEFAULT 1,
                     motor_state INT NOT NULL DEFAULT 0,
@@ -225,8 +147,6 @@ function autoSetupTables($pdo) {
                     ip_address VARCHAR(45) DEFAULT NULL
                 );
 
-    try {
-        $userCols = $pdo->query("SHOW COLUMNS FROM `users`")->fetchAll(PDO::FETCH_COLUMN);
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(100) NOT NULL DEFAULT '',
@@ -237,16 +157,6 @@ function autoSetupTables($pdo) {
                 );
             ");
 
-        // Rename userid to id if needed
-        if (in_array('userid', $userCols, true) && !in_array('id', $userCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `users` CHANGE COLUMN `userid` `id` INT AUTO_INCREMENT");
-                $userCols[] = 'id';
-            } catch (Exception $e) {
-                try {
-                    $pdo->exec("ALTER TABLE `users` CHANGE `userid` `id` INT NOT NULL AUTO_INCREMENT");
-                    $userCols[] = 'id';
-                } catch (Exception $e2) {}
             // Seed default admin account
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = 'admin'");
             $stmt->execute();
@@ -257,13 +167,7 @@ function autoSetupTables($pdo) {
                     ON CONFLICT (username) DO NOTHING;
                 ");
             }
-        }
 
-        // Add id if neither id nor userid exists
-        if (!in_array('id', $userCols, true) && !in_array('userid', $userCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `users` ADD COLUMN `id` INT AUTO_INCREMENT PRIMARY KEY FIRST");
-            } catch (Exception $e) {}
             // Seed default device state
             $devCount = (int)$pdo->query("SELECT COUNT(*) FROM device_state WHERE id = 1")->fetchColumn();
             if ($devCount === 0) {
@@ -294,12 +198,6 @@ function autoSetupTables($pdo) {
                     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-        // Add name column
-        if (!in_array('name', $userCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `users` ADD COLUMN `name` VARCHAR(100) NOT NULL DEFAULT ''");
-            } catch (Exception $e) {}
-        }
                 CREATE TABLE IF NOT EXISTS `logs` (
                     `id` INT AUTO_INCREMENT PRIMARY KEY,
                     `username` VARCHAR(50) DEFAULT NULL,
@@ -309,12 +207,6 @@ function autoSetupTables($pdo) {
                     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-        // Add username column
-        if (!in_array('username', $userCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `users` ADD COLUMN `username` VARCHAR(50) NOT NULL UNIQUE");
-            } catch (Exception $e) {}
-        }
                 CREATE TABLE IF NOT EXISTS `device_state` (
                     `id` INT PRIMARY KEY DEFAULT 1,
                     `motor_state` TINYINT(1) NOT NULL DEFAULT 0,
@@ -322,12 +214,6 @@ function autoSetupTables($pdo) {
                     `ip_address` VARCHAR(45) DEFAULT NULL
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-        // Add password column
-        if (!in_array('password', $userCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `users` ADD COLUMN `password` VARCHAR(255) NOT NULL");
-            } catch (Exception $e) {}
-        }
                 CREATE TABLE IF NOT EXISTS `users` (
                     `id` INT AUTO_INCREMENT PRIMARY KEY,
                     `name` VARCHAR(100) NOT NULL DEFAULT '',
@@ -338,12 +224,6 @@ function autoSetupTables($pdo) {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
 
-        // Add role column
-        if (!in_array('role', $userCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `users` ADD COLUMN `role` VARCHAR(20) NOT NULL DEFAULT 'staff'");
-            } catch (Exception $e) {}
-        }
             // Safe auto-migration for existing MySQL tables
             $userCols = getTableColumns($pdo, 'users');
             if (in_array('userid', $userCols, true) && !in_array('id', $userCols, true)) {
@@ -362,20 +242,6 @@ function autoSetupTables($pdo) {
                 } catch (Exception $e) {}
             }
 
-        // Add created_at column
-        if (!in_array('created_at', $userCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `users` ADD COLUMN `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-            } catch (Exception $e) {}
-        }
-
-        // Migrate legacy roles to staff
-        try {
-            $pdo->exec("UPDATE `users` SET `role` = 'staff' WHERE `role` IN ('operator', 'viewer')");
-        } catch (Exception $e) {}
-
-        // Ensure default admin user exists
-        try {
             // Seed default admin
             $adminCount = (int)$pdo->query("SELECT COUNT(*) FROM `users` WHERE `username` = 'admin'")->fetchColumn();
             if ($adminCount === 0) {
@@ -383,9 +249,6 @@ function autoSetupTables($pdo) {
                     INSERT INTO `users` (`name`, `username`, `password`, `role`)
                     VALUES ('System Administrator', 'admin', 'admin123', 'admin')
                 ");
-            } else {
-                $pdo->exec("UPDATE `users` SET `name` = 'System Administrator' WHERE `username` = 'admin' AND (`name` = '' OR `name` IS NULL)");
-                $pdo->exec("UPDATE `users` SET `role` = 'admin' WHERE `username` = 'admin'");
             }
 
             // Seed device state
@@ -394,56 +257,6 @@ function autoSetupTables($pdo) {
                 $pdo->exec("INSERT INTO `device_state` (`id`, `motor_state`, `last_ping`, `ip_address`) VALUES (1, 0, NOW(), '127.0.0.1')");
             }
         } catch (Exception $e) {}
-    } catch (Exception $e) {}
-
-    // 4. Setup & Migrate Logs Table (Column-by-Column Safe Migration)
-    try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS `logs` (
-                `id` INT AUTO_INCREMENT PRIMARY KEY,
-                `username` VARCHAR(50) DEFAULT NULL,
-                `user_name` VARCHAR(100) DEFAULT NULL,
-                `event` VARCHAR(255) NOT NULL,
-                `time` VARCHAR(60) NOT NULL,
-                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        ");
-    } catch (Exception $e) {}
-
-    try {
-        $logCols = $pdo->query("SHOW COLUMNS FROM `logs`")->fetchAll(PDO::FETCH_COLUMN);
-
-        if (!in_array('id', $logCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `logs` ADD COLUMN `id` INT AUTO_INCREMENT PRIMARY KEY FIRST");
-            } catch (Exception $e) {}
-        }
-        if (!in_array('username', $logCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `logs` ADD COLUMN `username` VARCHAR(50) DEFAULT NULL");
-            } catch (Exception $e) {}
-        }
-        if (!in_array('user_name', $logCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `logs` ADD COLUMN `user_name` VARCHAR(100) DEFAULT NULL");
-            } catch (Exception $e) {}
-        }
-        if (!in_array('event', $logCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `logs` ADD COLUMN `event` VARCHAR(255) NOT NULL");
-            } catch (Exception $e) {}
-        }
-        if (!in_array('time', $logCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `logs` ADD COLUMN `time` VARCHAR(60) NOT NULL");
-            } catch (Exception $e) {}
-        }
-        if (!in_array('created_at', $logCols, true)) {
-            try {
-                $pdo->exec("ALTER TABLE `logs` ADD COLUMN `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-            } catch (Exception $e) {}
-        }
-    } catch (Exception $e) {}
     }
 }
 
@@ -471,32 +284,19 @@ function getJsonInput() {
     return is_array($decoded) ? $decoded : [];
 }
 
-// If db.php is opened directly in a browser, test connection and display status with columns
 // Direct browser test for db.php
 if (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'db.php') {
     $pdo = getDb();
-    
-    $userCols = [];
-    $logCols = [];
-    try {
-        $userCols = $pdo->query("SHOW COLUMNS FROM `users`")->fetchAll(PDO::FETCH_COLUMN);
-        $logCols = $pdo->query("SHOW COLUMNS FROM `logs`")->fetchAll(PDO::FETCH_COLUMN);
-    } catch (Exception $e) {}
     $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
     $userCols = getTableColumns($pdo, 'users');
     $logCols  = getTableColumns($pdo, 'logs');
 
     sendJson([
         'status'   => 'success',
-        'message'  => 'Database connected & tables auto-migrated successfully!',
-        'database' => DB_NAME,
-        'user'     => DB_USER,
         'message'  => 'Database connected & tables auto-initialized successfully!',
         'engine'   => strtoupper($driver),
         'time'     => date('Y-m-d h:i:s A'),
         'tables'   => [
-            'users'        => 'Ready ✅ (columns: ' . implode(', ', $userCols) . ')',
-            'logs'         => 'Ready ✅ (columns: ' . implode(', ', $logCols) . ')',
             'users'        => 'Ready ✅ (' . count($userCols) . ' columns)',
             'logs'         => 'Ready ✅ (' . count($logCols) . ' columns)',
             'schedules'    => 'Ready ✅',
