@@ -7,7 +7,7 @@ class ControlProvider with ChangeNotifier {
   bool _isMotorOn = false;
   bool _isConnected = false;
   List<Map<String, dynamic>> _schedules = [];
-  String _ipAddress = 'https://darkslateblue-hawk-354006.hostingersite.com'; // Live Hostinger Cloud API
+  String _ipAddress = 'https://pwms-9jkw.onrender.com'; // Live Render Cloud API
 
   UserModel? _currentUser;
   List<UserModel> _users = [];

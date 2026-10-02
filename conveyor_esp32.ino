@@ -4,16 +4,16 @@
 #include <ArduinoJson.h>
 #include <time.h>
 
-// --- Wi-Fi & Cloud Hostinger Configuration ---
+// --- Wi-Fi & Cloud Render Configuration ---
 const char* ssid = "Box 2.4G";
 const char* password = "boxbox123";
 
-// Your Live Hostinger API Endpoint URL
-const char* serverUrl = "https://darkslateblue-hawk-354006.hostingersite.com";
+// Live Render Cloud API Endpoint URL
+const char* serverUrl = "https://pwms-9jkw.onrender.com";
 
 // NTP Time Configuration
 const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 28800; // Adjust for your timezone (e.g. 28800 for UTC+8)
+const long  gmtOffset_sec = 28800; // Adjust for your timezone (e.g. 28800 for UTC+8 Philippines/Asia)
 const int   daylightOffset_sec = 0;
 
 // Hardware Pin Configuration
@@ -28,7 +28,7 @@ String lastTriggeredTime = "";
 
 // Cloud Sync Timer
 unsigned long lastSyncTime = 0;
-const unsigned long syncIntervalMs = 4000; // Sync with Hostinger every 4 seconds
+const unsigned long syncIntervalMs = 4000; // Sync with Render every 4 seconds
 
 // Forward declaration
 void checkSchedules(JsonArray schedules);
@@ -58,7 +58,7 @@ String getCurrentDateStr() {
   return String(dateStr);
 }
 
-// --- Cloud Sync with Hostinger PHP Backend ---
+// --- Cloud Sync with Render PHP Backend ---
 void syncWithCloud(String logEventToSend = "") {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi not connected. Skipping cloud sync.");
@@ -81,6 +81,8 @@ void syncWithCloud(String logEventToSend = "") {
     http.begin(regularClient, syncUrl);
   }
 
+  http.setTimeout(15000); // 15s timeout to handle Render free tier cold-starts
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   http.addHeader("Content-Type", "application/json");
 
   StaticJsonDocument<256> reqDoc;
@@ -111,9 +113,11 @@ void syncWithCloud(String logEventToSend = "") {
       // 2. Check and Execute Schedules from Cloud
       JsonArray schedules = resDoc["schedules"].as<JsonArray>();
       checkSchedules(schedules);
+    } else {
+      Serial.printf("[JSON] Deserialization error: %s\n", error.c_str());
     }
   } else {
-    Serial.printf("[HTTP] Sync status/error: %d\n", httpCode);
+    Serial.printf("[HTTP] Sync failed, status/error code: %d\n", httpCode);
   }
 
   http.end();
@@ -176,13 +180,15 @@ void setup() {
   pinMode(relayPin, OUTPUT);
   digitalWrite(relayPin, LOW);
 
-  Serial.println("\nConnecting to Wi-Fi...");
+  Serial.println("\n--- PWMS ESP32 Conveyor Controller ---");
+  Serial.println("Connecting to Wi-Fi: " + String(ssid));
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
   Serial.println("\nWi-Fi Connected! Local IP: " + WiFi.localIP().toString());
+  Serial.println("Server URL: " + String(serverUrl));
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   Serial.println("Synchronizing NTP Time...");
@@ -212,6 +218,7 @@ void loop() {
 
   // 3. Wi-Fi Auto-reconnect if lost
   if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Wi-Fi connection lost. Reconnecting...");
     WiFi.reconnect();
     delay(1000);
   }

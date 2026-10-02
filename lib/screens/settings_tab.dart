@@ -40,8 +40,8 @@ class SettingsTab extends StatelessWidget {
                             controller: ipController,
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                             decoration: InputDecoration(
-                              labelText: 'HOSTINGER API / SERVER URL',
-                              hintText: 'https://yourdomain.com/api or 192.168.1.1',
+                              labelText: 'CLOUD API / SERVER URL',
+                              hintText: 'https://pwms-9jkw.onrender.com or 192.168.1.1',
                               hintStyle: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12),
                               labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                               border: InputBorder.none,

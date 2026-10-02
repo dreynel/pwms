@@ -77,14 +77,14 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Hostinger API URL or Local IP:',
+                'Server Endpoint URL or Local IP:',
                 style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: urlController,
                 decoration: InputDecoration(
-                  hintText: 'https://darkslateblue-hawk-354006.hostingersite.com',
+                  hintText: 'https://pwms-9jkw.onrender.com',
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(

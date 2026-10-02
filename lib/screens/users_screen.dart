@@ -87,7 +87,7 @@ class _UsersScreenState extends State<UsersScreen> {
             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFF1E293B)),
             onPressed: () => Navigator.pop(context),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
