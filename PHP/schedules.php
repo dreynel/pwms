@@ -68,7 +68,7 @@ if ($method === 'POST' || $method === 'PUT') {
                     ? json_encode(array_values($item['days'])) 
                     : json_encode(['Daily']);
                 $duration = isset($item['duration']) ? (int)$item['duration'] : 1;
-                $enabled = isset($item['enabled']) ? ($item['enabled'] ? 1 : 0) : 1;
+                $enabled = isset($item['enabled']) ? ($item['enabled'] ? 'true' : 'false') : 'true';
 
                 $insertStmt->execute([
                     ':type'     => $type,
@@ -93,7 +93,7 @@ if ($method === 'POST' || $method === 'PUT') {
                 ? json_encode(array_values($input['days'])) 
                 : json_encode(['Daily']);
             $duration = isset($input['duration']) ? (int)$input['duration'] : 1;
-            $enabled = isset($input['enabled']) ? ($input['enabled'] ? 1 : 0) : 1;
+            $enabled = isset($input['enabled']) ? ($input['enabled'] ? 'true' : 'false') : 'true';
 
             if ($id) {
                 // Update existing

@@ -34,7 +34,7 @@ try {
     $targetMotorState = $stateRow ? (bool)$stateRow['motor_state'] : false;
 
     // 4. Fetch all active schedules
-    $schedStmt = $pdo->query("SELECT * FROM schedules WHERE enabled = 1 ORDER BY id ASC");
+    $schedStmt = $pdo->query("SELECT * FROM schedules WHERE enabled = TRUE ORDER BY id ASC");
     $schedRows = $schedStmt->fetchAll();
 
     $schedules = [];
