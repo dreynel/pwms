@@ -149,7 +149,16 @@ class ControlProvider with ChangeNotifier {
       username: _currentUser?.username,
       role: _currentUser?.role,
     );
-    _logs = fetched.reversed.toList();
+    // Sort descending by ID to ensure newest logs are always at the top
+    fetched.sort((a, b) {
+      final int idA = int.tryParse(a['id']?.toString() ?? '0') ?? 0;
+      final int idB = int.tryParse(b['id']?.toString() ?? '0') ?? 0;
+      if (idA != 0 && idB != 0) {
+        return idB.compareTo(idA);
+      }
+      return 0;
+    });
+    _logs = fetched;
     notifyListeners();
   }
 

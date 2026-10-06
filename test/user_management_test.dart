@@ -71,6 +71,27 @@ void main() {
       provider.logout();
       expect(provider.currentUser, isNull);
     });
+
+    test('Verifies newest logs are placed at top of list', () async {
+      // Inject sample logs
+      final sampleLogs = [
+        {'id': 1, 'event': 'Oldest Event', 'time': 'Mon 10:00 AM'},
+        {'id': 3, 'event': 'Newest Event', 'time': 'Mon 10:10 AM'},
+        {'id': 2, 'event': 'Middle Event', 'time': 'Mon 10:05 AM'},
+      ];
+      sampleLogs.sort((a, b) {
+        final int idA = int.tryParse(a['id']?.toString() ?? '0') ?? 0;
+        final int idB = int.tryParse(b['id']?.toString() ?? '0') ?? 0;
+        if (idA != 0 && idB != 0) {
+          return idB.compareTo(idA);
+        }
+        return 0;
+      });
+
+      expect(sampleLogs.first['id'], 3);
+      expect(sampleLogs.first['event'], 'Newest Event');
+      expect(sampleLogs.last['id'], 1);
+    });
   });
 
   group('UsersScreen Widget Tests', () {

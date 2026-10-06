@@ -28,7 +28,6 @@ class _LogsTabState extends State<LogsTab> {
         child: Column(
           children: [
             _buildStickyHeader(context, provider),
-            if (!provider.isAdmin) _buildStaffBanner(provider),
             Expanded(
               child: provider.logs.isEmpty
                   ? _buildEmptyState(provider)
@@ -41,8 +40,6 @@ class _LogsTabState extends State<LogsTab> {
   }
 
   Widget _buildStickyHeader(BuildContext context, ControlProvider provider) {
-    final isAdmin = provider.isAdmin;
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
@@ -61,9 +58,9 @@ class _LogsTabState extends State<LogsTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                isAdmin ? 'SYSTEM AUDIT TRAIL' : 'PERSONAL ACTIVITY',
-                style: const TextStyle(
+              const Text(
+                'SYSTEM ACTIVITY LOGS',
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: Colors.blueAccent,
@@ -88,9 +85,9 @@ class _LogsTabState extends State<LogsTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                isAdmin ? 'All System Event Logs' : 'My Activity Logs',
-                style: const TextStyle(
+              const Text(
+                'All System Event Logs',
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1E293B),
@@ -108,41 +105,7 @@ class _LogsTabState extends State<LogsTab> {
     );
   }
 
-  Widget _buildStaffBanner(ControlProvider provider) {
-    final name = provider.currentUser?.displayName ?? 'Staff';
-    final username = provider.currentUser?.username ?? '';
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0284C7).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.shield_outlined, size: 18, color: Color(0xFF0284C7)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Showing personal actions for $name (@$username)',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF0369A1),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmptyState(ControlProvider provider) {
-    final isAdmin = provider.isAdmin;
-
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -162,21 +125,19 @@ class _LogsTabState extends State<LogsTab> {
             child: const Icon(Icons.history_rounded, size: 60, color: Color(0xFF94A3B8)),
           ),
           const SizedBox(height: 20),
-          Text(
-            isAdmin ? 'No System Events Recorded' : 'No Personal Activity Yet',
-            style: const TextStyle(
+          const Text(
+            'No System Events Recorded',
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            isAdmin
-                ? 'All hardware and user actions will be listed here.'
-                : 'Your motor controls and session activities will be recorded here.',
+          const Text(
+            'All hardware and user actions will be listed here.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
           ),
         ],
       ),

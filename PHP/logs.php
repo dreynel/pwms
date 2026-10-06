@@ -9,32 +9,10 @@ require_once __DIR__ . '/db.php';
 $pdo = getDb();
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Handle GET: Retrieve logs (All for Admin; Self-only for Staff)
+// Handle GET: Retrieve all system logs (Newest first for both Admin and Staff)
 if ($method === 'GET') {
-    $username = isset($_GET['username']) ? trim($_GET['username']) : '';
-    $role     = isset($_GET['role']) ? strtolower(trim($_GET['role'])) : '';
-
     try {
-        // If Staff (username provided and role is not admin), filter only his/her logs
-        if (!empty($username) && $role !== 'admin') {
-            $stmt = $pdo->prepare("
-                SELECT * FROM logs 
-                WHERE username = :username 
-                   OR event LIKE :fuzzy1 
-                   OR event LIKE :fuzzy2
-                ORDER BY id DESC 
-                LIMIT 100
-            ");
-            $stmt->execute([
-                ':username' => $username,
-                ':fuzzy1'   => "%(@{$username})%",
-                ':fuzzy2'   => "%({$username})%"
-            ]);
-        } else {
-            // Admin or general fetch: Retrieve all logs
-            $stmt = $pdo->query("SELECT * FROM logs ORDER BY id DESC LIMIT 100");
-        }
-
+        $stmt = $pdo->query("SELECT * FROM logs ORDER BY id DESC LIMIT 150");
         $rows = $stmt->fetchAll();
 
         $logs = [];

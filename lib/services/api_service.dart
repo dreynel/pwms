@@ -158,12 +158,8 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getLogs({String? username, String? role}) async {
     try {
-      String endpoint = 'logs.php';
-      if (username != null && username.isNotEmpty && role != 'admin') {
-        endpoint = 'logs.php?username=${Uri.encodeComponent(username)}&role=staff';
-      }
-      final response = await _get(endpoint);
-      debugPrint('[API] getLogs ($endpoint): ${response.statusCode}');
+      final response = await _get('logs.php');
+      debugPrint('[API] getLogs: ${response.statusCode}');
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
         return data.cast<Map<String, dynamic>>();
