@@ -39,15 +39,16 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
                   child: Column(
                     children: [
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
                       _buildControlHub(context),
-                      const SizedBox(height: 50),
+                      const SizedBox(height: 36),
                       _buildQuickStats(context),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 24),
                       _buildSystemInfo(context),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -61,8 +62,9 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
 
   Widget _buildStickyHeader(BuildContext context) {
     final provider = Provider.of<ControlProvider>(context);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -76,56 +78,68 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
+          const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'CONTROL CENTER',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w800,
                   color: Colors.blueAccent,
                   letterSpacing: 2,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 2),
               Text(
                 'Waste Conveyor 01',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1E293B),
+                  color: Color(0xFF1E293B),
                 ),
               ),
             ],
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: provider.isConnected ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: provider.isConnected ? Colors.green : Colors.red,
-                    shape: BoxShape.circle,
-                  ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B), size: 22),
+                tooltip: 'Refresh Status',
+                onPressed: () => provider.refreshStatus(),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: provider.isConnected
+                      ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                      : const Color(0xFFEF4444).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  provider.isConnected ? 'ONLINE' : 'OFFLINE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: provider.isConnected ? Colors.green : Colors.red,
-                  ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: provider.isConnected ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      provider.isConnected ? 'ONLINE' : 'OFFLINE',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: provider.isConnected ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -134,94 +148,119 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
 
   Widget _buildControlHub(BuildContext context) {
     final provider = Provider.of<ControlProvider>(context);
-    return Stack(
-      alignment: Alignment.center,
+
+    return Column(
       children: [
-        // Pulse Rings
-        if (provider.isMotorOn)
-          AnimatedBuilder(
-            animation: _pulseController,
-            builder: (context, child) {
-              return Container(
-                width: 250 + (50 * _pulseController.value),
-                height: 250 + (50 * _pulseController.value),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.blueAccent.withValues(alpha: 0.1 * (1 - _pulseController.value)),
-                ),
-              );
-            },
-          ),
-        
-        // Tactile Button
-        GestureDetector(
-          onTap: () async {
-            if (!provider.canControlMotor) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🔒 Read-Only: Viewer account cannot control the conveyor motor.'),
-                  backgroundColor: Color(0xFF1E293B),
-                ),
-              );
-              return;
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Sending command to cloud server...'),
-                duration: Duration(milliseconds: 800),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            // Pulse Rings
+            if (provider.isMotorOn)
+              AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  return Container(
+                    width: 240 + (40 * _pulseController.value),
+                    height: 240 + (40 * _pulseController.value),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.12 * (1 - _pulseController.value)),
+                    ),
+                  );
+                },
               ),
-            );
-            await provider.toggleMotor();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    provider.isMotorOn 
-                        ? '✅ Command sent: Motor turned ON' 
-                        : '🔴 Command sent: Motor turned OFF'
+
+            // Tactile Button
+            GestureDetector(
+              onTap: () async {
+                if (!provider.canControlMotor) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('🔒 Read-Only: Account cannot control the conveyor motor.'),
+                      backgroundColor: Color(0xFF1E293B),
+                    ),
+                  );
+                  return;
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Sending command to cloud server...'),
+                    duration: Duration(milliseconds: 700),
                   ),
-                  backgroundColor: provider.isMotorOn ? Colors.green : Colors.red,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            }
-          },
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: provider.isMotorOn 
-                      ? Colors.blueAccent.withValues(alpha: 0.3) 
-                      : Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 30,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
-            child: Center(
+                );
+                await provider.toggleMotor();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        provider.isMotorOn
+                            ? '✅ Conveyor Motor is now RUNNING'
+                            : '🔴 Conveyor Motor is now STOPPED',
+                      ),
+                      backgroundColor: provider.isMotorOn ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
               child: Container(
-                width: 170,
-                height: 170,
+                width: 190,
+                height: 190,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: provider.isMotorOn 
-                        ? [const Color(0xFF3B82F6), const Color(0xFF2563EB)]
-                        : [const Color(0xFFF1F5F9), const Color(0xFFE2E8F0)],
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: provider.isMotorOn
+                          ? const Color(0xFF3B82F6).withValues(alpha: 0.35)
+                          : Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 28,
+                      spreadRadius: provider.isMotorOn ? 6 : 2,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Container(
+                    width: 156,
+                    height: 156,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: provider.isMotorOn
+                            ? [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)]
+                            : [const Color(0xFFF1F5F9), const Color(0xFFE2E8F0)],
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.power_settings_new_rounded,
+                      size: 72,
+                      color: provider.isMotorOn ? Colors.white : const Color(0xFF94A3B8),
+                    ),
                   ),
                 ),
-                child: Icon(
-                  Icons.power_settings_new_rounded,
-                  size: 80,
-                  color: provider.isMotorOn ? Colors.white : const Color(0xFF94A3B8),
-                ),
               ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: provider.isMotorOn
+                ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                : const Color(0xFF64748B).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            provider.isMotorOn ? '● CONVEYOR ACTIVE (RUNNING)' : '○ CONVEYOR STANDBY (IDLE)',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: provider.isMotorOn ? const Color(0xFF059669) : const Color(0xFF475569),
             ),
           ),
         ),
@@ -231,39 +270,89 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
 
   Widget _buildQuickStats(BuildContext context) {
     final provider = Provider.of<ControlProvider>(context);
-    return Row(
-      children: [
-        _buildStatCard('Motor', provider.isMotorOn ? 'RUNNING' : 'STOPPED', 
-            provider.isMotorOn ? Colors.blueAccent : Colors.blueGrey),
-        const SizedBox(width: 16),
-        _buildStatCard('Voltage', '12.4V', Colors.orange),
-      ],
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.precision_manufacturing_rounded,
+                label: 'Motor State',
+                value: provider.isMotorOn ? 'RUNNING' : 'STOPPED',
+                color: provider.isMotorOn ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                bgTint: provider.isMotorOn ? const Color(0xFF10B981) : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.bolt_rounded,
+                label: 'Supply Power',
+                value: '12V DC Relay',
+                color: const Color(0xFFF59E0B),
+                bgTint: const Color(0xFFF59E0B),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text(value, style: TextStyle(fontSize: 18, color: color, fontWeight: FontWeight.w800)),
-          ],
-        ),
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    required Color bgTint,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: bgTint.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(fontSize: 15, color: color, fontWeight: FontWeight.w800),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
@@ -271,24 +360,31 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
   Widget _buildSystemInfo(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'SYSTEM TELEMETRY',
-            style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+            'SYSTEM TELEMETRY & HARDWARE',
+            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
           ),
-          const SizedBox(height: 16),
-          _buildTelemetryRow('Connection Type', 'ESP32 Wi-Fi Node'),
-          const Divider(color: Colors.white10, height: 24),
-          _buildTelemetryRow('Hardware Rev', 'v1.2.0 (Relay Mode)'),
-          const Divider(color: Colors.white10, height: 24),
-          _buildTelemetryRow('Schedule Sync', 'Active (Cloud DB)'),
+          const SizedBox(height: 14),
+          _buildTelemetryRow('Connection Protocol', 'ESP32 Wi-Fi Node (HTTPS)'),
+          const Divider(color: Color(0xFF334155), height: 20),
+          _buildTelemetryRow('Hardware Interface', 'Pin 12 / D12 Relay Driver'),
+          const Divider(color: Color(0xFF334155), height: 20),
+          _buildTelemetryRow('Sync Frequency', 'Every 5s (Heartbeat)'),
         ],
       ),
     );
@@ -298,8 +394,16 @@ class _ControlTabState extends State<ControlTab> with SingleTickerProviderStateM
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-        Text(value, style: const TextStyle(color: Colors.blueAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(color: Color(0xFF60A5FA), fontSize: 12, fontWeight: FontWeight.bold),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
