@@ -100,7 +100,7 @@ if ($method === 'POST') {
                 ':username'  => $username,
                 ':user_name' => $name,
                 ':event'     => "Added user '{$name}' (@{$username}, {$role})",
-                ':time'      => date('D h:i A'),
+                ':time'      => date('M d, Y h:i A'),
             ]);
         } catch (Exception $ex) {
             // Ignore log failure
@@ -226,7 +226,7 @@ if ($method === 'PUT') {
                 ':username'  => $username,
                 ':user_name' => $name,
                 ':event'     => "Updated user '{$name}' (@{$username}, role: {$role}" . (!empty($password) ? ", pwd changed" : "") . ")",
-                ':time'      => date('D h:i A'),
+                ':time'      => date('M d, Y h:i A'),
             ]);
         } catch (Exception $ex) {
             // Ignore log failure
@@ -293,7 +293,7 @@ if ($method === 'DELETE') {
                 ':username'  => $targetUser['username'] ?? '',
                 ':user_name' => $displayName,
                 ':event'     => "Deleted user '{$displayName}' (@" . ($targetUser['username'] ?? '') . ")",
-                ':time'      => date('D h:i A'),
+                ':time'      => date('M d, Y h:i A'),
             ]);
         } catch (Exception $ex) {
             // Ignore log failure

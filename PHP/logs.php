@@ -1,7 +1,7 @@
 <?php
 /**
  * /logs.php - Hardware and Activity Logs Management
- * Admin can view all logs; Staff can view ONLY their own logs.
+ * Retrieves and logs system and hardware activity (formatted as M d, Y).
  */
 
 require_once __DIR__ . '/db.php';
@@ -17,12 +17,23 @@ if ($method === 'GET') {
 
         $logs = [];
         foreach ($rows as $row) {
+            $timeVal = $row['time'];
+            if (!empty($row['created_at'])) {
+                try {
+                    $dt = new DateTime($row['created_at'], new DateTimeZone('UTC'));
+                    $dt->setTimezone(new DateTimeZone(TIMEZONE));
+                    $timeVal = $dt->format('M d, Y h:i A');
+                } catch (Exception $e) {
+                    $timeVal = $row['time'];
+                }
+            }
+
             $logs[] = [
                 'id'         => (int)$row['id'],
                 'username'   => $row['username'] ?? null,
                 'user_name'  => $row['user_name'] ?? null,
                 'event'      => $row['event'],
-                'time'       => $row['time'],
+                'time'       => $timeVal,
                 'created_at' => $row['created_at']
             ];
         }
@@ -33,7 +44,7 @@ if ($method === 'GET') {
     }
 }
 
-// Handle POST: Add new log entry (with optional user tracking)
+// Handle POST: Add new log entry (with user tracking)
 if ($method === 'POST') {
     $input = getJsonInput();
 
@@ -42,7 +53,7 @@ if ($method === 'POST') {
     }
 
     $event     = trim($input['event']);
-    $time      = !empty($input['time']) ? trim($input['time']) : date('D h:i A');
+    $time      = !empty($input['time']) ? trim($input['time']) : date('M d, Y h:i A');
     $username  = isset($input['username']) ? trim($input['username']) : null;
     $userName  = isset($input['user_name']) ? trim($input['user_name']) : (isset($input['name']) ? trim($input['name']) : null);
 

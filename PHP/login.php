@@ -66,7 +66,7 @@ try {
                 ':username'  => $user['username'],
                 ':user_name' => $displayName,
                 ':event'     => "User Login ({$displayName} - @{$user['username']})",
-                ':time'      => date('D h:i A')
+                ':time'      => date('M d, Y h:i A')
             ]);
         } catch (Exception $logEx) {}
 

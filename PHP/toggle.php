@@ -31,7 +31,7 @@ try {
 
     $action = $newState ? 'Motor turned ON' : 'Motor turned OFF';
     $eventText = $action . $userLabel;
-    $logTime = date('D h:i A'); // e.g. "Sat 07:15 AM"
+    $logTime = date('M d, Y h:i A'); // e.g. "Oct 07, 2026 10:55 AM"
 
     $logStmt = $pdo->prepare("
         INSERT INTO logs (username, user_name, event, time) 

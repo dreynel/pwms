@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/control_provider.dart';
 
@@ -30,7 +31,7 @@ class _LogsTabState extends State<LogsTab> {
             _buildStickyHeader(context, provider),
             Expanded(
               child: provider.logs.isEmpty
-                  ? _buildEmptyState(provider)
+                  ? _buildEmptyState()
                   : _buildLogsList(context, provider),
             ),
           ],
@@ -105,7 +106,7 @@ class _LogsTabState extends State<LogsTab> {
     );
   }
 
-  Widget _buildEmptyState(ControlProvider provider) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -144,6 +145,25 @@ class _LogsTabState extends State<LogsTab> {
     );
   }
 
+  String _formatLogDate(Map<String, dynamic> log) {
+    final rawCreatedAt = log['created_at']?.toString();
+    final rawTime = log['time']?.toString() ?? '';
+
+    if (rawCreatedAt != null && rawCreatedAt.trim().isNotEmpty) {
+      try {
+        DateTime? dt = DateTime.tryParse(rawCreatedAt);
+        if (dt != null) {
+          if (!rawCreatedAt.contains('+') && !rawCreatedAt.endsWith('Z')) {
+            dt = DateTime.parse('${rawCreatedAt}Z').toLocal();
+          }
+          return DateFormat('MMM dd, yyyy  h:mm a').format(dt);
+        }
+      } catch (_) {}
+    }
+
+    return rawTime;
+  }
+
   Widget _buildLogsList(BuildContext context, ControlProvider provider) {
     return ListView.builder(
       padding: const EdgeInsets.all(20),
@@ -180,6 +200,7 @@ class _LogsTabState extends State<LogsTab> {
         }
 
         final author = log['user_name'] ?? log['username'];
+        final formattedDate = _formatLogDate(log);
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -228,7 +249,7 @@ class _LogsTabState extends State<LogsTab> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          log['time'] ?? '',
+                          formattedDate,
                           style: const TextStyle(
                             color: Color(0xFF64748B),
                             fontSize: 12,

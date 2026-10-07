@@ -12,7 +12,7 @@ $clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 try {
     // 1. If ESP32 reported a log event, record it
     if (!empty($input['log_event'])) {
-        $logTime = !empty($input['log_time']) ? $input['log_time'] : date('D h:i A');
+        $logTime = !empty($input['log_time']) ? $input['log_time'] : date('M d, Y h:i A');
         $logStmt = $pdo->prepare("INSERT INTO logs (event, time) VALUES (:event, :time)");
         $logStmt->execute([
             ':event' => trim($input['log_event']),
